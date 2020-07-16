@@ -1,7 +1,7 @@
 # pandora
 
 ## Introduction
-pandora is an analysis framework to perform Point Source Function (PSF) modeling of time domain astronomical images such as the full frame images of the Transition Exoplanet Survey Satellite (TESS). Given a series of images, it enables computationally efficient and reliable inference of point source fluxes.
+pandora is an analysis framework to perform Point Source Function (PSF) modeling of time domain astronomical images such as the Transition Exoplanet Survey Satellite (TESS) and the Kepler telescope. Given a series of images, it enables computationally efficient and reliable inference of point source fluxes.
 
 
 ## Usage
