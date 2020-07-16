@@ -1,14 +1,14 @@
 from setuptools import setup, find_packages
 
 setup(
-    name = 'Nano',
+    name = 'pabdora',
     packages = find_packages(),
     version = '1.0',
-    description = 'Nerede Noktasal PSF photometry', 
+    description = 'PSF modeling of images in time domain astronomy', 
     author = 'Tansu Daylan'
     author_email = 'tansu.daylan@gmail.com',
-    url = 'https://github.com/tdaylan/tcat',
-    download_url = 'https://github.com/tdaylan/tcat', 
+    url = 'https://github.com/tdaylan/pandora',
+    download_url = 'https://github.com/tdaylan/pandora', 
     license='MIT',
     classifiers=['Development Status :: 4 - Beta',
                  'Intended Audience :: Science/Research',

@@ -38,7 +38,7 @@ def read_psfntess(a, b, k, l):
     indxrowsthis = np.argmin(abs(k - indxrows))
     indxcolsthis = np.argmin(abs(l - indxcols))
     
-    pathdata = os.environ['TCAT_DATA_PATH'] + '/tesspsfn/'
+    pathdata = os.environ['PANDORA_DATA_PATH'] + '/tesspsfn/'
     pathsubs = pathdata + 'tess_prf-master/cam%d_ccd%d/' % (a, b)
     if a == 2 and b == 4 or a > 2:
         path = pathsubs + 'tess2018243163601-prf-%d-%d-row%04d-col%04d.fits' % (a, b, indxrows[indxrowsthis], indxcols[indxcolsthis])
@@ -237,7 +237,7 @@ def plot_lcur(gdat, lcurmodl, stdvlcurmodl, k, indxsectplot, strgsecc, strgoffs,
         else:
             yerr = None
         temp, listcaps, temp = axis[0].errorbar(timedatatemp, lcurmodl, yerr=yerr, color='b', ls='', markersize=5, \
-                                                                                marker='o', lw=3, alpha=0.3, label='TCAT')
+                                                                                marker='o', lw=3, alpha=0.3, label='Pandora')
         for caps in listcaps:
             caps.set_markeredgewidth(3)
         
@@ -529,7 +529,7 @@ def main( \
     # string for date and time
     gdat.strgtimestmp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     
-    print('TCAT initialized at %s...' % gdat.strgtimestmp)
+    print('pandora initialized at %s...' % gdat.strgtimestmp)
    
     # determine the target
     if gdat.ticitarg is not None and (rasctarg is not None or decltarg is not None) or \
@@ -583,7 +583,7 @@ def main( \
         print('PSF model shape:')
         print(gdat.psfnshaptype)
     # paths
-    gdat.pathbase = os.environ['TCAT_DATA_PATH'] + '/'
+    gdat.pathbase = os.environ['PANDORA_DATA_PATH'] + '/'
     gdat.pathdata = gdat.pathbase + 'data/'
     gdat.pathimag = gdat.pathbase + 'imag/'
     if gdat.strgbase is None:
@@ -693,7 +693,7 @@ def main( \
     gdat.numbrefrcatl = len(gdat.lablrefrcatl)
     gdat.indxrefrcatl = np.arange(gdat.numbrefrcatl)
     
-    # check for an earlier TCAT run
+    # check for an earlier pandora run
     gdat.boolskip = True
     for o in gdat.indxsect:
         strgsecc = '%02d%d%d' % (gdat.listisec[o], gdat.listicam[o], gdat.listiccd[o])
@@ -1617,7 +1617,7 @@ def main( \
 
 def init_list(pathfile, strgbase, **kwag):
     
-    pathbase = os.environ['TCAT_DATA_PATH'] + '/%s/' % strgbase
+    pathbase = os.environ['PANDORA_DATA_PATH'] + '/%s/' % strgbase
     os.system('mkdir -p %s' % pathbase)
 
     listticitarg = []
