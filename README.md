@@ -1,12 +1,12 @@
-# TCAT (TESS Cataloger)
+# lygos
 
 ## Introduction
-TCAT is an analysis tool to model Transition Exoplanet Survey Satellite (TESS) data with Point Source Function (PSF) photometry.
+lygos is an inference framework to model Transition Exoplanet Survey Satellite (TESS) data using Point Source Function (PSF) photometry. It extracts light curves from a time-series of images with well-characterized uncertainties.
 
 
 ## Usage
 ```
-import tcat
+import lygos
     
 ticitarg = 22529346
 labltarg = 'WASP-121'
