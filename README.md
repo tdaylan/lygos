@@ -8,22 +8,21 @@ First, import the lygos module.
 ```
 import lygos
 ```
-
-Then, you can extract light curves of certain targets by a single function.
+Then, you can extract light curves of certain targets by a single function lygos.main.init(). There are two ways to indicate the path where you want the plot and data files to be produced. You can either set the environment variable 'LYGOS_DATA_PATH' (i.e., export LYGOS_DATA_PATH=/your/path/) or provide the pathbase argument.
 
 WASP-121b:
 ```
-lygos.main(strgmast='WASP-121')
+lygos.main.init(strgmast='WASP-121')
 ```
 
 TOI-1233:
 ```
-lygos.main(toiitarg=1233)
+lygos.main.init(toiitarg=1233)
 ```
 
-The light curve at an arbitrary RA and DEC ():
+The light curve at an arbitrary RA and DEC (124.343, 138.927):
 ```
 rasctarg = 124.343
 decltarg = 138.927
-lygos.main(rasctarg=rasctarg, decltarg=decltarg)
+lygos.main.init(rasctarg=rasctarg, decltarg=decltarg)
 ```
