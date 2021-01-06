@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name = 'lygos',
     packages = find_packages(),
-    version = '1.0',
+    version = '1.1',
     description = 'PSF modeling of images in time domain astronomy', 
     author = 'Tansu Daylan',
     author_email = 'tansu.daylan@gmail.com',
