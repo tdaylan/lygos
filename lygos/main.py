@@ -9,6 +9,8 @@ from scipy import ndimage
 
 import h5py
 
+import pandas as pd
+
 import emcee
 
 import os, datetime, fnmatch
@@ -28,7 +30,7 @@ import time as timemodu
 import tdpy.mcmc
 from tdpy.util import summgene
 import tdpy.util
-import tesstarg.util
+import ephesus.util
 
 from lion import main as lionmain
 
@@ -57,34 +59,36 @@ def read_psfntess(a, b, k, l):
     return psfn
 
 
-def plot_cntpwrap(gdat, cntp, o, strgsecc, typecntpscal, nameplotcntp, strgdataextn, \
-                                                    boolresi=False, listindxpixlcolr=None, indxpcol=None, indxtimeanim=None, \
+def plot_cntpwrap(gdat, cntp, o, typecntpscal, nameplotcntp, strgsave, \
+                                                    boolresi=False, listindxpixlcolr=None, indxpcol=None, \
                                                                                 time=None, lcur=None, \
                                                                                 vmin=None, vmax=None, \
                                                                                 listtime=None, listtimelabl=None, \
                                                                                 ):
     
     if time is None:
-        time = [None for t in gdat.indxtime]
+        time = [None for t in gdat.indxtime[o]]
 
     if listtimelabl is None:
-        listtimelabl = [None for t in gdat.indxtime]
+        listtimelabl = [None for t in gdat.indxtime[o]]
 
-    if indxtimeanim is None:
-        indxtimeanim = np.arange(cntp.shape[2])
-    
     listpath = []
-    for tt, t in enumerate(indxtimeanim):
-        pathcntp = retr_pathvisu(gdat, nameplotcntp, strgdataextn, indxpcol=indxpcol, indxtimeplot=t)
-
+    for tt, t in enumerate(gdat.indxtimeanim):
+        pathcntp = retr_pathvisu(gdat, nameplotcntp, strgsave, indxpcol=indxpcol, indxtimeplot=t)
+        
+        print('tt')
+        print(tt)
+        print('t')
+        print(t)
+        print('')
         # make title
         strgtitl = gdat.strgtitlcntpplot
         if listtimelabl[t] is not None:
             strgtitl += ', %s' % listtimelabl[t]
         
-        path = plot_cntp(gdat, cntp[:, :, t], o, typecntpscal, nameplotcntp, strgdataextn, \
+        path = plot_cntp(gdat, cntp[:, :, t], o, typecntpscal, nameplotcntp, strgsave, \
                                                 strgtitl=strgtitl, boolresi=boolresi, listindxpixlcolr=listindxpixlcolr, \
-                                                                                            timelabl=listtimelabl[t], thistime=time[t], \
+                                                                                            timelabl=listtimelabl[t], thistime=time[t], indxtimeplot=t, \
                                                                                                 vmin=vmin, vmax=vmax, lcur=lcur, time=time)
         
         listpath.append(path)
@@ -92,9 +96,9 @@ def plot_cntpwrap(gdat, cntp, o, strgsecc, typecntpscal, nameplotcntp, strgdatae
     return listpath
 
 
-def plot_cntp(gdat, cntp, o, typecntpscal, nameplotcntp, strgdataextn, indxpcol=None, \
+def plot_cntp(gdat, cntp, o, typecntpscal, nameplotcntp, strgsave, indxpcol=None, \
                                             cbar='Greys_r', strgtitl='', boolresi=False, xposoffs=None, yposoffs=None, strgextn='', \
-                                                                                           lcur=None, boolanno=True, \
+                                                                                           lcur=None, boolanno=True, indxtimeplot=None, \
                                                                                            time=None, timelabl=None, thistime=None, \
                                                                                            vmin=None, vmax=None, listindxpixlcolr=None):
     
@@ -164,7 +168,7 @@ def plot_cntp(gdat, cntp, o, typecntpscal, nameplotcntp, strgdataextn, indxpcol=
         axis[1].set_ylabel('Relative flux') 
         axis[1].axvline(thistime)
     
-    path = retr_pathvisu(gdat, nameplotcntp, strgdataextn, typecntpscal=typecntpscal, indxpcol=indxpcol)
+    path = retr_pathvisu(gdat, nameplotcntp, strgsave, typecntpscal=typecntpscal, indxpcol=indxpcol, indxtimeplot=indxtimeplot)
     print('Writing to %s...' % path)
     plt.tight_layout()
     plt.savefig(path)
@@ -173,17 +177,17 @@ def plot_cntp(gdat, cntp, o, typecntpscal, nameplotcntp, strgdataextn, indxpcol=
     return path
 
 
-def plot_lcur(gdat, lcurmodl, stdvlcurmodl, k, indxtsecplot, strgsecc, booltpxf, strgoffs, strgdataextn, timeedge=None, listmodeplot=[0], \
+def plot_lcur(gdat, lcurmodl, stdvlcurmodl, k, indxtsecplot, strgsecc, booltpxf, strgoffs, strgsave, timeedge=None, listmodeplot=[0], \
                     strgextn='', indxtimelimt=None, indxtzom=None, boolerrr=False):
     
     if k == 0:
-        lablcomp = ', Target source' % k
+        lablcomp = ', Target source'
     elif k == gdat.numbcomp - 1:
         lablcomp = ', Background'
     else:
         lablcomp = ', Neighbor Source %d' % k
 
-    timedatatemp = np.copy(gdat.timedata[indxtsecplot])
+    timedatatemp = np.copy(gdat.listtime[indxtsecplot])
     timerefrtemp = [[] for q in gdat.indxrefrlcur[indxtsecplot]] 
     for q in gdat.indxrefrlcur[indxtsecplot]:
         timerefrtemp[q] = gdat.refrtime[indxtsecplot][q]
@@ -196,7 +200,13 @@ def plot_lcur(gdat, lcurmodl, stdvlcurmodl, k, indxtsecplot, strgsecc, booltpxf,
     lablxaxi = 'Time [BJD]'
     
     for a in listmodeplot:
+        nameplot = 'rflx_s%03d_mod%d' % (k, a)
+        path = retr_pathvisu(gdat, nameplot, strgsave, indxtzom=indxtzom)
         
+        # skip the plot if it has been made before
+        if os.path.exists(path):
+            continue
+
         if a == 1 and k > 0:
             continue
             
@@ -218,7 +228,7 @@ def plot_lcur(gdat, lcurmodl, stdvlcurmodl, k, indxtsecplot, strgsecc, booltpxf,
         else:
             yerr = None
         temp, listcaps, temp = axis[0].errorbar(timedatatemp, lcurmodl, yerr=yerr, color='b', ls='', markersize=2, \
-                                                                                marker='.', lw=3, alpha=0.3, label='Pandora')
+                                                                                marker='.', lw=3, alpha=0.3, label='Lygos')
         for caps in listcaps:
             caps.set_markeredgewidth(3)
         
@@ -231,12 +241,6 @@ def plot_lcur(gdat, lcurmodl, stdvlcurmodl, k, indxtsecplot, strgsecc, booltpxf,
                     yerr = gdat.stdvrefrrflx[indxtsecplot][q]
                 else:
                     yerr = None
-                print('indxtsecplot')
-                print(indxtsecplot)
-                print('q')
-                print(q)
-                print('gdat.refrrflx[indxtsecplot][q]')
-                summgene(gdat.refrrflx[indxtsecplot][q])
                 temp, listcaps, temp = axis[0].errorbar(timerefrtemp, gdat.refrrflx[indxtsecplot][q], \
                                                     yerr=yerr, color=gdat.colrrefrlcur[indxtsecplot][q], ls='', markersize=2, \
                                                                             marker='.', lw=3, alpha=0.3, label=gdat.lablrefrlcur[indxtsecplot][q])
@@ -245,19 +249,17 @@ def plot_lcur(gdat, lcurmodl, stdvlcurmodl, k, indxtsecplot, strgsecc, booltpxf,
             
             ## residual
             for q in gdat.indxrefrlcur[indxtsecplot]:
-                if lcurmodl.size == gdat.refrrflx[indxtsecplot][q][:gdat.numbtimecutt].size:
+                if lcurmodl.size == gdat.refrrflx[indxtsecplot][q].size:
                     print('q')
                     print(q)
                     print('lcurmodl')
                     summgene(lcurmodl)
-                    print('gdat.refrrflx[indxtsecplot][q][:gdat.numbtimecutt]')
-                    summgene(gdat.refrrflx[indxtsecplot][q][:gdat.numbtimecutt])
-                    ydat = lcurmodl - gdat.refrrflx[indxtsecplot][q][:gdat.numbtimecutt]
+                    ydat = lcurmodl - gdat.refrrflx[indxtsecplot][q]
                     if boolerrr:
                         yerr = None
                     else:
                         yerr = None
-                    axis[1].errorbar(timedatatemp[:gdat.numbtimecutt], ydat, yerr=yerr, label=gdat.lablrefrlcur[indxtsecplot][q], \
+                    axis[1].errorbar(timedatatemp, ydat, yerr=yerr, label=gdat.lablrefrlcur[indxtsecplot][q], \
                                                         color='k', ls='', marker='.', markersize=2, alpha=0.3)
         axis[0].set_title(gdat.labltarg + lablcomp)
         if gdat.listtimeplotline is not None:
@@ -271,8 +273,6 @@ def plot_lcur(gdat, lcurmodl, stdvlcurmodl, k, indxtsecplot, strgsecc, booltpxf,
             axis[a].set_xlim(gdat.listlimttimetzom[indxtzom])
         
         #plt.tight_layout()
-        nameplot = 'rflx_s%03d_mod%d' % (k, a)
-        path = retr_pathvisu(gdat, nameplot, strgdataextn, indxtzom=indxtzom)
         print('Writing to %s...' % path)
         plt.savefig(path)
         plt.close()
@@ -281,7 +281,7 @@ def plot_lcur(gdat, lcurmodl, stdvlcurmodl, k, indxtsecplot, strgsecc, booltpxf,
 def retr_pathvisu(gdat, \
                     nameplot, \
                     # data
-                    strgdataextn, \
+                    strgsave, \
                     
                     # rflx 
                     # temporal zoom
@@ -317,21 +317,21 @@ def retr_pathvisu(gdat, \
     if indxtimeplot is None:
         strgtime = ''
     else:
-        strgtime = '_%08d' % t
+        strgtime = '_%08d' % indxtimeplot
     
-    pathvisu = gdat.pathimagobjt + '%s%s%s%s%s%s.%s' % \
-               (nameplot, strgdataextn, strgscal, strgtzom, strgpcol, strgtime, strgplotextn)
+    pathvisu = gdat.pathimagtarg + '%s%s%s%s%s%s.%s' % \
+               (nameplot, strgsave, strgscal, strgtzom, strgpcol, strgtime, strgplotextn)
     
     return pathvisu
 
 
-def retr_cntpmodl(gdat, xpos, ypos, flux, cntpback, coef=None, verbtype=1):
+def retr_cntpmodl(gdat, xpos, ypos, flux, cntpback, o, coef=None, verbtype=1):
     
-    if gdat.psfntype == 'lion':
+    if gdat.typepsfn == 'lion':
         gdat.gdatlion.numbtime = flux.shape[0]
         cntpmodl = lionmain.eval_modl(gdat.gdatlion, xpos, ypos, flux[None, :, :], cntpback[None, None, None, :])[0, :, :, :]
     else:
-        cntpmodl = np.zeros_like((gdat.numbside, gdat.numbside, gdat.numbtime)) + cntpback
+        cntpmodl = np.zeros_like((gdat.numbside, gdat.numbside, gdat.numbtime[o])) + cntpback
         for k in range(xpos.size):
             deltxpos = gdat.xpos - xpos[k]
             deltypos = gdat.ypos - ypos[k]
@@ -346,8 +346,6 @@ def retr_cntpmodl(gdat, xpos, ypos, flux, cntpback, coef=None, verbtype=1):
             
             cntpmodl += flux[k] * psfnsour
             
-        #for t in gdat.indxtime:
-    
     return cntpmodl
 
 
@@ -356,7 +354,7 @@ def retr_llik(gdat, para):
     coef = para[:gdat.numbcoef]
     cntpback = para[gdat.numbcoef]
 
-    if gdat.psfntype == 'lion':
+    if gdat.typepsfn == 'lion':
         coef = None
     else:
         if gdat.psfnshaptype == 'gfreffix':
@@ -367,7 +365,7 @@ def retr_llik(gdat, para):
             flux = gdat.cntsfitt * para[gdat.numbcoef+1:]
         else:
             flux = para[gdat.numbcoef+1:]
-    cntpmodl = retr_cntpmodl(gdat, gdat.xposfitt, gdat.yposfitt, flux, cntpback, coef)
+    cntpmodl = retr_cntpmodl(gdat, gdat.xposfitt, gdat.yposfitt, flux, cntpback, o, coef=coef)
     
     chi2 = np.sum((gdat.cntpdatatmed - cntpmodl)**2 / gdat.cntpdatatmed)
     llik = -0.5 * chi2
@@ -385,15 +383,19 @@ def retr_mlikflux(cntpdata, matrdesi, vari):
     return mlikfittflux, covafittflux
 
 
-def retr_strgdataextn(gdat, strgsecc, strgoffs, typecade):
+def retr_strgsave(gdat, strgsecc, strgoffs, typecade):
     
     if strgoffs == 'of11':
         strgoffstemp = ''
     else:
         strgoffstemp = '_' + strgoffs
-    strgdataextn = '_%s_%s%s_%s' % (gdat.strgcnfg, strgsecc, strgoffstemp, typecade)
+    if gdat.maxmnumbstar is None:
+        strgmaxmnumbstar = ''
+    else:
+        strgmaxmnumbstar = '_m%03d' % gdat.maxmnumbstar
+    strgsave = '_%s_%s%s_%s%s' % (gdat.strgcnfg, strgsecc, strgoffstemp, typecade, strgmaxmnumbstar)
 
-    return strgdataextn
+    return strgsave
 
 
 def retr_strgoffs(gdat, x, y):
@@ -428,12 +430,19 @@ def init( \
          ## type of data: 'mock', 'obsd'
          typedata='obsd', \
          
+         # selected TESS sectors
+         listtsecsele=None, \
+    
+         # Boolean flag to use Target Pixel Files (TPFs) at the highest cadence whenever possible
+         booltpxflygo=True, \
+
+         # list of TESS sectors for which 
+         #listtsec2min=None, \
+
          ## mock data
          truesourtype='dwar', \
          ### number of time bins
          numbtime=None, \
-         ### Boolean flag
-         boolcenttran=False, \
         
          # target
          ## a string to be used to search MAST for the target
@@ -444,48 +453,49 @@ def init( \
          rasctarg=None, \
          ## DEC of the object of interest
          decltarg=None, \
+         # TOI ID
+         toiitarg=None, \
 
+         # path for the target
+         pathtarg=None, \
+        
          ## number of pixels on a side to cut out
          numbside=11, \
         
-         ## base path
-         pathbase=None, \
-
          ## mask
          ### Boolean flag to put a cut on quality flag
          boolcuttqual=True, \
+         limttimeignoqual=None, \
+
          ### masking region
          epocmask=None, \
          perimask=None, \
          duramask=None, \
-    
-         # string indicating the cluster
+         
+         # processing
+         boolcbvs=True, \
+
+         # string indicating the cluster of targets
          strgclus=None, \
 
          # visualization
          ## Boolean flag to make relative flux plots
-         boolplotrflx=False, \
+         boolplotrflx=True, \
          ## Boolean flag to make image plots
          boolplotcntp=False, \
          ## Boolean flag to plot the quaternions
-         boolplotquat=False, \
+         boolplotquat=True, \
          ## Boolean flag to make an animation
          boolanim=False, \
          ## Boolean flag to include all time bins in the animation
-         boolanimframtotl=False, \
+         boolanimframtotl=True, \
         
          ## Boolean flag to plot the histogram of the number of counts
          boolplothhistcntp=False, \
 
          # plot extensions
          strgplotextn='png', \
-
         
-         # selected TESS sectors
-         listtsecsele=None, \
-
-         strgbase=None, \
-         
          # diagnostics
          booldiagmode=True, \
 
@@ -493,13 +503,13 @@ def init( \
          ## factor by which to rebin the data along time
          facttimerebn=1., \
          ## maximum number stars in the fit
-         maxmnumbstar=None, \
+         maxmnumbstar=1, \
         
          # maximum delta magnitude of neighbor sources to be included in the model
          maxmdmag=4., \
         
          ## PSF evaluation
-         psfntype='lion', \
+         typepsfn='lion', \
          psfnshaptype='gfrefinf', \
 
          catlextr=None, \
@@ -509,11 +519,6 @@ def init( \
          boolfittoffs=False, \
 
          ## post-process
-         ## baseline-detrending
-         boolbdtr=False, \
-         bdtrtype='spln', \
-         booladdddiscbdtr=False, \
-         
          listpixlaper=None, \
 
          # epoch for correcting the RA and DEC for proper motion
@@ -536,8 +541,10 @@ def init( \
          strgtarg=None, \
         
          # image color scale
-         listtypecntpscal=['self', 'asnh'], \
+         #listtypecntpscal=['self', 'asnh'], \
+         listtypecntpscal=['self'], \
          
+         **args, \
         ):
    
     # start the timer
@@ -551,61 +558,108 @@ def init( \
         if '__' not in attr and attr != 'gdat':
             setattr(gdat, attr, valu)
 
+    # copy named arguments to the global object
+    for strg, valu in args.items():
+        setattr(gdat, strg, valu)
+
     # string for date and time
     gdat.strgtimestmp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     
     print('lygos initialized at %s...' % gdat.strgtimestmp)
-   
-    # determine the target
-    if gdat.ticitarg is not None and (gdat.rasctarg is not None or gdat.decltarg is not None) or \
-                gdat.ticitarg is not None and gdat.strgmast is not None or \
-                (gdat.rasctarg is not None or gdat.decltarg is not None) and gdat.strgmast is not None:
-        raise Exception('Either a TIC ID (ticitarg) or RA&DEC (rasctarg and decltarg) or a string to be searched on MAST (strgmast) \
-                                                                                                         should be provided; not more than one of these.')
-    if gdat.ticitarg is None and (gdat.rasctarg is None or gdat.decltarg is None) and gdat.strgmast is None:
-        raise Exception('Either a TIC ID (ticitarg) or RA&DEC (rasctarg and decltarg) or a string to be searched on MAST (strgmast) should be provided.')
+    # paths
+    gdat.pathbase = os.environ['LYGOS_DATA_PATH'] + '/'
+
+    ## ensure target identifiers are not conflicting
+    if gdat.ticitarg is None and gdat.strgmast is None and gdat.toiitarg is None and (gdat.rasctarg is None or gdat.decltarg is None):
+        raise Exception('Either a TIC ID (ticitarg), RA&DEC (rasctarg and decltarg), MAST key (strgmast) or a TOI number (toiitarg) should be provided.')
+    if gdat.ticitarg is not None and (gdat.strgmast is not None or gdat.toiitarg is not None or gdat.rasctarg is not None or gdat.decltarg is not None):
+        raise Exception('Either a TIC ID (ticitarg), RA&DEC (rasctarg and decltarg), MAST key (strgmast) or a TOI number (toiitarg) should be provided.')
+    if gdat.strgmast is not None and (gdat.ticitarg is not None or gdat.toiitarg is not None or gdat.rasctarg is not None or gdat.decltarg is not None):
+        raise Exception('Either a TIC ID (ticitarg), RA&DEC (rasctarg and decltarg), MAST key (strgmast) or a TOI number (toiitarg) should be provided.')
+    if gdat.toiitarg is not None and (gdat.strgmast is not None or gdat.ticitarg is not None or gdat.rasctarg is not None or gdat.decltarg is not None):
+        raise Exception('Either a TIC ID (ticitarg), RA&DEC (rasctarg and decltarg), MAST key (strgmast) or a TOI number (toiitarg) should be provided.')
+    if gdat.strgmast is not None and (gdat.ticitarg is not None or gdat.toiitarg is not None or gdat.rasctarg is not None or gdat.decltarg is not None):
+        raise Exception('Either a TIC ID (ticitarg), RA&DEC (rasctarg and decltarg), MAST key (strgmast) or a TOI number (toiitarg) should be provided.')
+
+    gdat.pathtoii = gdat.pathbase + 'data/exofop_tess_tois.csv'
+    print('Reading from %s...' % gdat.pathtoii)
+    objtexof = pd.read_csv(gdat.pathtoii, skiprows=0)
+
+    # conversion factors
+    gdat.factrsrj, gdat.factrjre, gdat.factrsre, gdat.factmsmj, gdat.factmjme, gdat.factmsme, gdat.factaurs = ephesus.util.retr_factconv()
+
+    # determine target identifiers
     if gdat.ticitarg is not None:
         strgtargtype = 'tici'
-        print('A TIC ID is provided as input.')
-        catalogData = astroquery.mast.Catalogs.query_object('TIC ' + str(gdat.ticitarg), radius='200s', catalog="TIC")
-        gdat.rasctarg = catalogData[0]['ra']
-        gdat.decltarg = catalogData[0]['dec']
-        tmagtarg = catalogData[0]['Tmag']
-        print('gdat.rasctarg')
-        print(gdat.rasctarg)
-        print('gdat.decltarg')
-        print(gdat.decltarg)
-        print('TIC ID: %d' % gdat.ticitarg)
-    else:
-        if gdat.rasctarg is not None and gdat.decltarg is not None:
-            strgtargtype = 'posi'
-            print('RA and DEC are provided as input.')
-            catalogData = astroquery.mast.Catalogs.query_region('%g %g' % (gdat.rasctarg, gdat.decltarg), radius='200s', catalog="TIC")
-            print('Found %d TIC sources within 200 as.' % len(catalogData))
-        else:
-            strgtargtype = 'mast'
-            print('A MAST keyword is provided as input: %s' % gdat.strgmast)
-            catalogData = astroquery.mast.Catalogs.query_region(gdat.strgmast, radius='200s', catalog="TIC")
-            print('Found %d TIC sources within 200 as.' % len(catalogData))
-            gdat.rasctarg = catalogData[0]['ra']
-            gdat.decltarg = catalogData[0]['dec']
-            tmagtarg = catalogData[0]['Tmag']
-            gdat.ticitarg = int(catalogData[0]['ID'])
+        print('A TIC ID was provided as target identifier.')
+        indx = np.where(objtexof['TIC ID'].values == gdat.ticitarg)[0]
+        if indx.size > 0:
+            gdat.toiitarg = int(str(objtexof['TOI'][indx[0]]).split('.')[0])
+            print('Matched the input TIC ID with TOI %d.' % gdat.toiitarg)
+        gdat.strgmast = 'TIC %d' % gdat.ticitarg
+
+    elif gdat.toiitarg is not None:
+        strgtargtype = 'toii'
+        print('A TOI number (%d) was provided as target identifier.' % gdat.toiitarg)
+        # determine TIC ID
+        gdat.strgtoiibase = str(gdat.toiitarg)
+        indx = []
+        for k, strg in enumerate(objtexof['TOI']):
+            if str(strg).split('.')[0] == gdat.strgtoiibase:
+                indx.append(k)
+        indx = np.array(indx)
+        if indx.size == 0:
+            print('Did not find the TOI in the ExoFOP-TESS TOI list.')
+            print('objtexof[TOI]')
+            summgene(objtexof['TOI'])
+            raise Exception('')
+        gdat.ticitarg = objtexof['TIC ID'].values[indx[0]]
+
+        gdat.strgmast = 'TIC %d' % gdat.ticitarg
+    
+    elif gdat.strgmast is not None:
+        strgtargtype = 'mast'
+        print('A MAST key (%s) was provided as target identifier.' % gdat.strgmast)
+
+    elif gdat.rasctarg is not None and gdat.decltarg is not None:
+        strgtargtype = 'posi'
+        print('RA and DEC (%g %g) are provided as target identifier.' % (gdat.rasctarg, gdat.decltarg))
+        gdat.strgmast = '%g %g' % (gdat.rasctarg, gdat.decltarg)
+    
+    print('strgtargtype')
+    print(strgtargtype)
+    print('gdat.strgmast')
+    print(gdat.strgmast)
+    print('gdat.toiitarg')
+    print(gdat.toiitarg)
+    # temp -- check that the closest TIC to a given TIC is itself
+    catalogData = astroquery.mast.Catalogs.query_region(gdat.strgmast, radius='200s', catalog="TIC")
+    print('Found %d TIC sources within 200 as.' % len(catalogData))
+    
+    gdat.ticitarg = int(catalogData[0]['ID'])
+    gdat.rasctarg = catalogData[0]['ra']
+    gdat.decltarg = catalogData[0]['dec']
+    gdat.tmagtarg = catalogData[0]['Tmag']
     
     print('gdat.ticitarg')
     print(gdat.ticitarg)
-    print('gdat.strgmast')
-    print(gdat.strgmast)
     print('gdat.rasctarg')
     print(gdat.rasctarg)
     print('gdat.decltarg')
     print(gdat.decltarg)
+    print('gdat.tmagtarg')
+    print(gdat.tmagtarg)
+    gdat.boolmastavai = True
     
     if gdat.labltarg is None:
-        if gdat.strgmast is not None:
+        if strgtargtype == 'mast':
             gdat.labltarg = gdat.strgmast
-        else:
+        if strgtargtype == 'toii':
+            gdat.labltarg = 'TOI %d' % gdat.toiitarg
+        if strgtargtype == 'tici':
             gdat.labltarg = 'TIC %d' % gdat.ticitarg
+        if strgtargtype == 'posi':
+            gdat.labltarg = 'RA=%.4g, DEC=%.4g' % (gdat.rasctarg, gdat.decltarg)
     
     if gdat.strgtarg is None:
         gdat.strgtarg = ''.join(gdat.labltarg.split(' '))
@@ -614,15 +668,12 @@ def init( \
     print('Output folder name: %s' % gdat.strgtarg) 
     print('RA and DEC: %g %g' % (gdat.rasctarg, gdat.decltarg))
     if strgtargtype == 'tici' or strgtargtype == 'mast':
-        print('Tmag: %g' % tmagtarg)
+        print('Tmag: %g' % gdat.tmagtarg)
    
-    print('PSF model: %s' % gdat.psfntype)
-    if gdat.psfntype == 'ontf':
+    print('PSF model: %s' % gdat.typepsfn)
+    if gdat.typepsfn == 'ontf':
         print('PSF model shape:')
         print(gdat.psfnshaptype)
-    # paths
-    if gdat.pathbase is None:
-        gdat.pathbase = os.environ['LYGOS_DATA_PATH'] + '/'
     
     gdat.pathimag = gdat.pathbase + 'imag/'
     gdat.pathdata = gdat.pathbase + 'data/'
@@ -631,27 +682,25 @@ def init( \
         gdat.strgclus = ''
     else:
         gdat.strgclus += '/'
-    
-    if gdat.strgbase is None:
-        gdat.pathobjt = gdat.pathbase + '%s%s/' % (gdat.strgclus, gdat.strgtarg)
-    else:
-        gdat.pathobjt = gdat.pathbase + '%s%s/%s/' % (gdat.strgclus, gdat.strgbase, gdat.strgtarg)
-    gdat.pathdataobjt = gdat.pathobjt + 'data/'
-    gdat.pathimagobjt = gdat.pathobjt + 'imag/'
+    if gdat.pathtarg is None:
+        gdat.pathtarg = gdat.pathbase + '%s%s/' % (gdat.strgclus, gdat.strgtarg)
+    gdat.pathdatatarg = gdat.pathtarg + 'data/'
+    gdat.pathimagtarg = gdat.pathtarg + 'imag/'
     gdat.pathclus = gdat.pathbase + '%s' % gdat.strgclus
     gdat.pathdataclus = gdat.pathclus + 'data/'
     gdat.pathimagclus = gdat.pathclus + 'imag/'
+    
     os.system('mkdir -p %s' % gdat.pathimag)
     os.system('mkdir -p %s' % gdat.pathdata)
-    os.system('mkdir -p %s' % gdat.pathimagobjt)
-    os.system('mkdir -p %s' % gdat.pathdataobjt)
+    os.system('mkdir -p %s' % gdat.pathimagtarg)
+    os.system('mkdir -p %s' % gdat.pathdatatarg)
     os.system('mkdir -p %s' % gdat.pathimagclus)
     os.system('mkdir -p %s' % gdat.pathdataclus)
     
     # create a separate folder to place the PSF fit output
-    if gdat.psfntype == 'ontf':
-        gdat.pathimagobjtpsfn = gdat.pathimagobjt + 'psfn/'
-        os.system('mkdir -p %s' % gdat.pathimagobjtpsfn)
+    if gdat.typepsfn == 'ontf':
+        gdat.pathimagtargpsfn = gdat.pathimagtarg + 'psfn/'
+        os.system('mkdir -p %s' % gdat.pathimagtargpsfn)
    
     # fix the seed
     np.random.seed(0)
@@ -669,140 +718,229 @@ def init( \
         strgtypedata = ''
     else:
         strgtypedata = '_' + gdat.typedata
-    if gdat.numbside == 11:
-        strgnumbside = ''
-    else:
-        strgnumbside = '_n%03d' % gdat.numbside
+    strgnumbside = '_n%03d' % gdat.numbside
     if gdat.facttimerebn != 1:
         strgrebn = '_b%03d' % gdat.facttimerebn
     else:
         strgrebn = ''
     gdat.strgcnfg = '%s%s%s%s' % (gdat.strgtarg, strgtypedata, strgnumbside, strgrebn)
-   
+    
     print('Reading the data...')
     # get data
     if gdat.typedata != 'mock':
         
         # check all available TESS (FFI) cutout data 
         objtskyy = astropy.coordinates.SkyCoord(gdat.rasctarg, gdat.decltarg, unit="deg")
-        listhdundata = astroquery.mast.Tesscut.get_cutouts(objtskyy, gdat.numbside)
+        listhdundatatemp = astroquery.mast.Tesscut.get_cutouts(objtskyy, gdat.numbside)
+        
+        print('gdat.rasctarg')
+        print(gdat.rasctarg)
+        print('gdat.decltarg')
+        print(gdat.decltarg)
         
         ## parse cutout HDUs
+        gdat.listtsecffim = []
+        gdat.listtcamffim = []
+        gdat.listtccdffim = []
+        gdat.listhdundataffim = []
+        for hdundata in listhdundatatemp:
+            tsec = hdundata[0].header['SECTOR']
+            gdat.listtsecffim.append(tsec)
+            gdat.listtcamffim.append(hdundata[0].header['CAMERA'])
+            gdat.listtccdffim.append(hdundata[0].header['CCD'])
+            gdat.listhdundataffim.append(hdundata)
+        gdat.listtsecffim = np.array(gdat.listtsecffim)
+        
+        print('temp')
+        if gdat.rasctarg == 122.989831564958:
+            gdat.listtsecffim = np.array([7, 34])
+            gdat.listtcamffim = np.array([1, 1])
+            gdat.listtccdffim = np.array([3, 4])
+    
+        print('gdat.listtsecffim')
+        print(gdat.listtsecffim)
+        print('gdat.listtcamffim')
+        print(gdat.listtcamffim)
+        print('gdat.listtccdffim')
+        print(gdat.listtccdffim)
+        
+        gdat.listtsecspoc = []
+        gdat.listtcamspoc = []
+        gdat.listtccdspoc = []
+        if booltpxflygo:
+            
+            # get the list of sectors for which TESS SPOC TPFs are available
+            print('Retrieving the list of available TESS sectors for which there is SPOC TPF data...')
+            # get observation tables
+            listtablobsv = ephesus.util.retr_listtablobsv(gdat.strgmast)
+            listprodspoc = []
+            for k, tablobsv in enumerate(listtablobsv):
+                
+                listprodspoctemp = astroquery.mast.Observations.get_product_list(tablobsv)
+                
+                if listtablobsv['distance'][k] > 0:
+                    continue
+
+                strgdesc = 'Light curves'
+                strgdesc = 'Target pixel files'
+                strgdesc = ['Target pixel files', 'Light curves']
+                listprodspoctemp = astroquery.mast.Observations.filter_products(listprodspoctemp, description=strgdesc)
+                for a in range(len(listprodspoctemp)):
+                    boolfasttemp = listprodspoctemp[a]['obs_id'].endswith('fast')
+                    if not boolfasttemp and listprodspoctemp[a]['description'] == 'Target pixel files':
+                        tsec = int(listprodspoctemp[a]['obs_id'].split('-')[1][1:])
+                        gdat.listtsecspoc.append(tsec) 
+                        
+                        print('temp')
+                        gdat.listtcamspoc.append(-1) 
+                        gdat.listtccdspoc.append(-1) 
+                        
+                        listprodspoc.append(listprodspoctemp)
+            
+            gdat.listtsecspoc = np.array(gdat.listtsecspoc)
+            gdat.listtcamspoc = np.array(gdat.listtcamspoc)
+            gdat.listtccdspoc = np.array(gdat.listtccdspoc)
+            
+            indx = np.argsort(gdat.listtsecspoc)
+            gdat.listtsecspoc = gdat.listtsecspoc[indx]
+            gdat.listtcamspoc = gdat.listtcamspoc[indx]
+            gdat.listtccdspoc = gdat.listtccdspoc[indx]
+            
+            print('gdat.listtsecspoc')
+            print(gdat.listtsecspoc)
+        
+            gdat.numbtsecspoc = gdat.listtsecspoc.size
+
+        if len(gdat.listtsecspoc) > 0:
+            gdat.indxtsecspoc = np.arange(gdat.numbtsecspoc)
+            
+            # download data from MAST
+            os.system('mkdir -p %s' % gdat.pathdatatarg)
+        
+            print('Downloading SPOC data products...')
+            
+            listhdundataspoc = [[] for o in gdat.indxtsecspoc]
+            listpathdownspoc = []
+
+            listpathdownspoclcur = []
+            listpathdownspoctpxf = []
+            for k in range(len(listprodspoc)):
+                manifest = astroquery.mast.Observations.download_products(listprodspoc[k], download_dir=gdat.pathdatatarg)
+                listpathdownspoclcur.append(manifest['Local Path'][0])
+                listpathdownspoctpxf.append(manifest['Local Path'][1])
+
+            ## make sure the list of paths to sector files are time-sorted
+            listpathdownspoc.sort()
+            listpathdownspoclcur.sort()
+            listpathdownspoctpxf.sort()
+            
+            ## read SPOC TPFs
+            for o in gdat.indxtsecspoc:
+                listhdundataspoc[o], gdat.listtsecspoc[o], gdat.listtcamspoc[o], \
+                                                                gdat.listtccdspoc[o] = ephesus.util.read_tesskplr_file(listpathdownspoctpxf[o])
+
+            print('gdat.listtsecspoc')
+            print(gdat.listtsecspoc)
+            print('gdat.listtcamspoc')
+            print(gdat.listtcamspoc)
+            print('gdat.listtccdspoc')
+            print(gdat.listtccdspoc)
+        
+        # merge SPOC TPF and FFI sector lists
         gdat.listtsec = []
         gdat.listtcam = []
         gdat.listtccd = []
-        listobjtwcss = []
-        for hdundata in listhdundata:
-            gdat.listtsec.append(hdundata[0].header['SECTOR'])
-            gdat.listtcam.append(hdundata[0].header['CAMERA'])
-            gdat.listtccd.append(hdundata[0].header['CCD'])
-            listobjtwcss.append(astropy.wcs.WCS(hdundata[2].header))
+        gdat.listtsecconc = np.unique(np.concatenate((gdat.listtsecffim, gdat.listtsecspoc)))
+        
+        if gdat.listtsecsele is not None:
+            gdat.listtsecconc = [tsec for tsec in gdat.listtsecconc if tsec in gdat.listtsecsele]
+        
+            print('gdat.listtsecsele')
+            print(gdat.listtsecsele)
+        
+        for k in range(len(gdat.listtsecconc)):
+            indx = np.where(gdat.listtsecspoc == gdat.listtsecconc[k])[0]
+            if indx.size > 0:
+                gdat.listtsec.append(gdat.listtsecspoc[indx[0]])
+                gdat.listtcam.append(gdat.listtcamspoc[indx[0]])
+                gdat.listtccd.append(gdat.listtccdspoc[indx[0]])
+            else:
+                indx = np.where(gdat.listtsecffim == gdat.listtsecconc[k])[0]
+                gdat.listtsec.append(gdat.listtsecffim[indx[0]])
+                gdat.listtcam.append(gdat.listtcamffim[indx[0]])
+                gdat.listtccd.append(gdat.listtccdffim[indx[0]])
+        gdat.listtsec = np.array(gdat.listtsec)
+        gdat.listtcam = np.array(gdat.listtcam)
+        gdat.listtccd = np.array(gdat.listtccd)
         
         print('gdat.listtsec')
         print(gdat.listtsec)
-        print('gdat.listtcam')
-        print(gdat.listtcam)
-        print('gdat.listtccd')
-        print(gdat.listtccd)
-        
-        ## all sectors for which TESS data are available
-        gdat.numbtsec = len(gdat.listtsec)
+        gdat.numbtsec = gdat.listtsec.size
         gdat.indxtsec = np.arange(gdat.numbtsec)
-
-        # get the list of sectors for which TESS SPOC data are available
-        print('Retrieving the list of available TESS sectors for which there is SPOC data...')
-        # list of TESS sectors for which SPOC data are available
-        gdat.listtsecspoc = []
-        # get observation tables
         
-        if not (gdat.ticitarg is None and gdat.strgmast is None):
-            listtablobsv = tesstarg.util.retr_listtablobsv(gdat.strgmast)
-            numbtabl = len(listtablobsv)
-            indxtabl = np.arange(numbtabl)
-            listlistproddata = [[] for k in indxtabl]
-            listlistproddatalcur = [[] for k in indxtabl]
-            listlistproddatatpxf = [[] for k in indxtabl]
-            for k, tablobsv in enumerate(listtablobsv):
-                # tablobsv[target_name] is TIC ID
-                listlistproddata[k] = astroquery.mast.Observations.get_product_list(tablobsv)
-                listlistproddatalcur[k] = astroquery.mast.Observations.filter_products(listlistproddata[k], description='Light curves')
-                listlistproddatatpxf[k] = astroquery.mast.Observations.filter_products(listlistproddata[k], description='Target pixel files')
-                for a in range(len(listlistproddatatpxf[k])):
-                    tsec = int(listlistproddatatpxf[k][a]['obs_id'].split('-')[1][1:])
-                    gdat.listtsecspoc.append(tsec) 
-        print('gdat.listtsecspoc')
-        print(gdat.listtsecspoc)
-
-        gdat.listtsecspoc = np.array(gdat.listtsecspoc)
-        gdat.listtsecspoc = np.sort(gdat.listtsecspoc)
-        
-        # determine whether sectors have 2-minute cadence data
-        gdat.booltpxf = tesstarg.util.retr_booltpxf(gdat.listtsec, gdat.listtsecspoc)
-        
-        gdat.typecade = np.zeros_like(gdat.booltpxf, dtype=object)
-        gdat.typecade[:] = '30mn'
-        gdat.typecade[np.where(gdat.booltpxf)] = '2min'
+        # determine whether sectors have TPFs
+        gdat.booltpxf = ephesus.util.retr_booltpxf(gdat.listtsec, gdat.listtsecspoc)
         print('gdat.booltpxf')
         print(gdat.booltpxf)
 
-        if len(gdat.listtsecspoc) > 0:
-            
-            # select sector
-            if gdat.listtsecsele is None:
-                gdat.listtsecsele = gdat.listtsec
-            
-            #listproddatatemp = []
-            #for k, proddata in enumerate(listproddata):
-            #    if k in indxprodsele:
-            #        listproddatatemp.append(proddata)
-            #listproddata = listproddatatemp
-            
-            #pathmasttess = gdat.pathdataobjt + 'mastDownload/TESS/'
-            listpathdownlcur = []
-            listpathdowntpxf = []
-            for k in indxtabl:
-                if len(listlistproddata[k]) > 0:
-                    tsec = int(listlistproddata[k][0]['obs_id'].split('-')[1][1:])
-                    if tsec in gdat.listtsecsele:
-                        #if listlistproddata[k][a]['description'] == 'Light curves' and tsec in indxtsecsele:
-                        manifest = astroquery.mast.Observations.download_products(listlistproddatalcur[k], download_dir=gdat.pathdataobjt)
-                        listpathdownlcur.append(manifest['Local Path'][0])
-                        manifest = astroquery.mast.Observations.download_products(listlistproddatatpxf[k], download_dir=gdat.pathdataobjt)
-                        listpathdowntpxf.append(manifest['Local Path'][0])
-
-            ## make sure the list of paths to sector files are time-sorted
-            listpathdownlcur.sort()
-            listpathdowntpxf.sort()
-            
-                    #indxsectfile = np.where(gdat.listtsec == hdundata[0].header['SECTOR'])[0][0]
-            #if typedataspoc == 'SAP' or typedataspoc == 'PDC':
-            #    for namefold in os.listdir(pathmasttess):
-            #        
-            #        # eliminate those 2-min data for which 20-sec data already exist
-            #        if boolfastonly and namefold.endswith('-s'):
-            #            if os.path.exists(pathmasttess + namefold[:-2] + '-a_fast'):
-            #                continue    
-            #        
-            #        if namefold.endswith('-s') or namefold.endswith('-a_fast'):
-            #            pathlcurinte = pathmasttess + namefold + '/'
-            #            pathlcur = pathlcurinte + fnmatch.filter(os.listdir(pathlcurinte), '*lc.fits')[0]
-            #            listpathlcur.append(pathlcur)
-            #
-            
-            if gdat.numbtsec == 0:
-                print('No data have been retrieved.' % (gdat.numbtsec))
+        gdat.listhdundata = [[] for o in gdat.indxtsec]
+        for o in gdat.indxtsec:
+            if gdat.booltpxf[o]:
+                indxtsectemp = np.where(gdat.listtsec[o] == gdat.listtsecspoc)[0][0]
+                gdat.listhdundata[o] = listhdundataspoc[indxtsectemp]
             else:
-                if gdat.numbtsec == 1:
-                    strgtemp = ''
+                indxtsectemp = np.where(gdat.listtsec[o] == gdat.listtsecffim)[0][0]
+                
+                #print('o')
+                #print(o)
+                #print('gdat.listtsec[o]')
+                #print(gdat.listtsec[o])
+                #print('gdat.listtsecffim')
+                #print(gdat.listtsecffim)
+                #print('indxtsectemp')
+                #print(indxtsectemp)
+                #print('gdat.listhdundataffim')
+                #print(gdat.listhdundataffim)
+                #print('')
+                
+                gdat.listhdundata[o] = gdat.listhdundataffim[indxtsectemp]
+
+        gdat.typecade = np.zeros_like(gdat.booltpxf, dtype=object)
+        for o, tsec in enumerate(gdat.listtsec):
+            if gdat.booltpxf[o]:
+                # temp does not work with 20sc
+                gdat.typecade[o] = '2min'
+            else:
+                if tsec > 26:
+                    gdat.typecade[o] = '10mn'
                 else:
-                    strgtemp = 's'
-                print('%d sector%s of data retrieved.' % (gdat.numbtsec, strgtemp))
-        
+                    gdat.typecade[o] = '30mn'
+        print('gdat.typecade')
+        print(gdat.typecade)
+
+        if gdat.numbtsec == 0:
+            print('No data have been retrieved.')
+        else:
+            if gdat.numbtsec == 1:
+                strgtemp = ''
+            else:
+                strgtemp = 's'
+            print('%d sector%s of data retrieved.' % (gdat.numbtsec, strgtemp))
+    
+        # get the WCS object
+        gdat.listobjtwcss = []
+        for o, tsec in enumerate(gdat.listtsec):
+            gdat.listobjtwcss.append(astropy.wcs.WCS(gdat.listhdundata[o][2].header))
+    
     gdat.dictoutp = dict()
     gdat.dictoutp['listtsec'] = gdat.listtsec
     gdat.dictoutp['listtcam'] = gdat.listtcam
     gdat.dictoutp['listtccd'] = gdat.listtccd
     if len(gdat.listtsec) != len(gdat.listtcam):
+        print('gdat.listtsec')
+        print(gdat.listtsec)
+        print('gdat.listtcam')
+        print(gdat.listtcam)
         raise Exception('')
 
     print('Found %d sectors of data.' % gdat.numbtsec)
@@ -820,15 +958,14 @@ def init( \
 
         strgsecc = retr_strgsecc(gdat, o)
         strgoffs = retr_strgoffs(gdat, 1, 1)
-        strgdataextn = retr_strgdataextn(gdat, strgsecc, strgoffs, gdat.typecade[o])
-        pathsaverflxtarg = gdat.pathdataobjt + 'rflxtarg' + strgdataextn + '.csv'
+        strgsave = retr_strgsave(gdat, strgsecc, strgoffs, gdat.typecade[o])
+        pathsaverflxtarg = gdat.pathdatatarg + 'rflxtarg' + strgsave + '.csv'
         gdat.dictoutp['pathsaverflxtargsc%02d' % gdat.listtsec[o]] = pathsaverflxtarg
         if os.path.exists(pathsaverflxtarg):
             print('Run previously completed...')
             gdat.listarry = [[] for o in gdat.indxtsec]
             for o in gdat.indxtsec:
                 gdat.listarry[o] = np.loadtxt(pathsaverflxtarg)
-            gdat.dictoutp['listarry'] = gdat.listarry
         
     # read TESS PSF
     pathpsfn = gdat.pathdata + 'tesspsfn/listpsfn.h5'
@@ -849,7 +986,7 @@ def init( \
     #cntppsfnusam = cntppsfnusam[None, :, :]
         
     # setup Lion
-    if gdat.psfntype == 'lion':
+    if gdat.typepsfn == 'lion':
         gdat.gdatlion = tdpy.util.gdatstrt()
         gdat.gdatlion.verbtype = 1
         gdat.gdatlion.boolspre = False
@@ -985,7 +1122,7 @@ def init( \
     gdat.stdvrefrrflx = [[[] for k in gdat.indxrefrlcur[o]] for o in gdat.indxtsec]
     
     # write metadata to file
-    gdat.pathsavemetaglob = gdat.pathdataobjt + 'metaglob.csv'
+    gdat.pathsavemetaglob = gdat.pathdatatarg + 'metaglob.csv'
     dictmeta = dict()
     dictmeta['RA'] = gdat.rasctarg
     dictmeta['Dec'] = gdat.decltarg
@@ -1000,7 +1137,8 @@ def init( \
     for o in gdat.indxtsec:
         # get reference light curve
         if gdat.booltpxf[o]:
-            arry, indxtimequalgood, indxtimenanngood, isecrefr, tcam, tccd = tesstarg.util.read_tesskplr_file(listpathdownlcur[cntr], strgtype='PDCSAP_FLUX')
+            arry, indxtimequalgood, indxtimenanngood, tsecrefr, tcam, tccd = ephesus.util.read_tesskplr_file(listpathdownspoclcur[cntr], \
+                                                                                                                                strgtype='PDCSAP_FLUX')
             gdat.refrtime[o][0] = arry[:, 0]
             gdat.refrrflx[o][0] = arry[:, 1]
             gdat.stdvrefrrflx[o][0] = arry[:, 2]
@@ -1009,7 +1147,8 @@ def init( \
         else:
             gdat.boolrefr[o] = False
         
-    gdat.timedata = [[] for o in gdat.indxtsec]
+    gdat.listtime = [[] for o in gdat.indxtsec]
+    gdat.indxtime = [[] for o in gdat.indxtsec]
     
     gdat.listarry = [[] for o in gdat.indxtsec]
     gdat.numbtime = np.empty(gdat.numbtsec, dtype=int)
@@ -1028,75 +1167,112 @@ def init( \
         
         # get data
         if gdat.typedata == 'mock':
-            gdat.listtime = np.linspace(0, gdat.numbtime - 1, gdat.numbtime)
-            indxtimedatagood = np.arange(gdat.numbtime)
+            gdat.listtime[o] = np.linspace(0, gdat.numbtime[o] - 1, gdat.numbtime[o])
+            indxtimedatagood = np.arange(gdat.numbtime[o])
         else:
+            
             # read the FITS files
             ## time
-            gdat.listtime = listhdundata[o][1].data['TIME']
+            print('gdat.listhdundata[o][1].data[QUALITY]')
+            summgene(gdat.listhdundata[o][1].data['QUALITY'])
+            print(gdat.listhdundata[o][1].data.names)
+            gdat.listtime[o] = gdat.listhdundata[o][1].data['TIME'] + 2457000
+            diff = gdat.listtime[o][1:] - gdat.listtime[o][:-1]
             
             ## count per pixel
-            gdat.cntpdata = gdat.timeexpo * (listhdundata[o][1].data['FLUX'] + \
-                                             listhdundata[o][1].data['FLUX_BKG']).swapaxes(0, 2).swapaxes(0, 1)
+            gdat.cntpdata = gdat.timeexpo * (gdat.listhdundata[o][1].data['FLUX'] + \
+                                             gdat.listhdundata[o][1].data['FLUX_BKG']).swapaxes(0, 2).swapaxes(0, 1)
             
             if gdat.booltpxf[o]:
                 gdat.numbside = gdat.cntpdata.shape[1]
             ## filter good times
             
-            #indxtimedatagood = np.isfinite(np.mean(gdat.cntpdata, axis=(0, 1, 2))) & np.isfinite(gdat.listtime)
-            indxtimedatagood = np.isfinite(gdat.listtime)
+            booldatagood = np.isfinite(gdat.listtime[o])
             if gdat.boolcuttqual:
-                indxtimedatagood = indxtimedatagood & (listhdundata[o][1].data['QUALITY'] == 0)
-            indxtimedatagood = np.where(indxtimedatagood)[0]
-            
+                print('Masking bad data with quality flags...')
+                booldatagood = booldatagood & (gdat.listhdundata[o][1].data['QUALITY'] == 0)
+            print('booldatagood')
+            summgene(booldatagood)
+            if limttimeignoqual is not None:
+                print('Ignoring the quality mask between %g and %g...' % (limttimeignoqual[0], limttimeignoqual[1]))
+                booldatagood = booldatagood | ((limttimeignoqual[0] < gdat.listtime[o]) & (gdat.listtime[o] < limttimeignoqual[1]))
+            print('booldatagood')
+            summgene(booldatagood)
+            indxtimedatagood = np.where(booldatagood)[0]
+            fracgood = 100. * float(indxtimedatagood.size) / gdat.listtime[o].size
+            print('Fraction of times: %.4g percent' % fracgood)
             if indxtimedatagood.size == 0:
                 print('No good data found.')
-                print('')
                 return gdat.dictoutp
     
-        gdat.listtime = gdat.listtime[indxtimedatagood]
+        gdat.listtime[o] = gdat.listtime[o][indxtimedatagood]
         gdat.cntpdata = gdat.cntpdata[:, :, indxtimedatagood]
         
-        gdat.numbtimecutt = gdat.listtime.size
+        gdat.numbtime[o] = gdat.listtime[o].size
+        gdat.indxtime[o] = np.arange(gdat.numbtime[o])
         
-        gdat.listtime = gdat.listtime[:gdat.numbtimecutt]
-        gdat.cntpdata = gdat.cntpdata[:, :, :gdat.numbtimecutt]
-       
-        gdat.numbtime[o] = gdat.listtime.size
-        gdat.indxtime = np.arange(gdat.numbtime[o])
-        
-        gdat.numbtimetsec = gdat.numbtime[o]
-
         gdat.gdatlion.numbtime = gdat.numbtime[o]
-        gdat.gdatlion.indxtime = gdat.indxtime
+        gdat.gdatlion.indxtime = gdat.indxtime[o]
         
         arrytemp = np.linspace(0., float(gdat.numbside - 1), gdat.numbside)
         gdat.xposimag, gdat.yposimag = np.meshgrid(arrytemp, arrytemp)
-            
-        if gdat.boolplotquat:
-            # plot centroid
-            figr, axis = plt.subplots(2, 1, figsize=(12, 4), sharex=True)
-            for k in range(2):
-                if k == 0:
-                    strg = 'x'
-                    posi = gdat.xposimag
-                else:
-                    strg = 'y'
-                    posi = gdat.yposimag
-                cent = np.sum(posi[None, :, :, None] * gdat.cntpdata, axis=(0, 1, 2)) / np.sum(gdat.cntpdata, axis=(0, 1, 2))
-                axis[k].plot(gdat.listtime, cent, ls='', marker='.', ms=1)
-                axis[k].plot(gdat.listtime, cent, ls='', marker='.', ms=1)
-                axis[k].set_ylabel('%s' % strg)
-            axis[1].set_xlabel('Time [BJD]')
-            path = gdat.pathimagobjt + 'cent_sc%02d.%s' % (gdat.listtsec[o], gdat.strgplotextn)
-            print('Writing to %s...' % path)
-            plt.savefig(path)
-            plt.close()
+        
+        gdat.pathcbvs = gdat.pathdata + 'cbvs/'
+        print('gdat.boolcbvs')
+        print(gdat.boolcbvs)
+        print('gdat.pathcbvs')
+        print(gdat.pathcbvs)
+        #if len(os.listdir(gdat.pathcbvs)) == 0 and 
+        if gdat.boolcbvs:
+            path = gdat.pathcbvs + fnmatch.filter(os.listdir(gdat.pathcbvs), 'tess*-s%04d-%d-%d-*-s_cbv.fits' % (gdat.listtsec[o], \
+                                                                                                gdat.listtcam[o], gdat.listtccd[o]))[0]
+            print('path')
+            print(path)
+            listhdun = astropy.io.fits.open(path)
+            listhdun.info()
+            timecbvs = listhdun[1].data['TIME']
+            gdat.numbcbvs = 5
+            gdat.indxcbvs = np.arange(gdat.numbcbvs)
+            timecbvstemp = listhdun[1].data['TIME'] + 2457000
+            cbvsraww = np.empty((timecbvstemp.size, gdat.numbcbvs))
+            gdat.cbvs = np.empty((gdat.numbtime[o], gdat.numbcbvs))
+            for i in gdat.indxcbvs:
+                cbvsraww[:, i] = listhdun[1].data['VECTOR_%i' % (i + 1)]
+                gdat.cbvs[:, i] = scipy.interpolate.interp1d(timecbvstemp, cbvsraww[:, i])(gdat.listtime[o])
+            gdat.cbvstmpt = np.ones((gdat.numbtime[o], gdat.numbcbvs + 1))
+            gdat.cbvstmpt[:, :-1] = gdat.cbvs
+            if gdat.boolplotquat:
+                # plot centroid
+                for a in range(2):
+                    if a == 0:
+                        numbplot = 2
+                    else:
+                        numbplot = gdat.numbcbvs
 
-
-
-
-
+                    for k in range(numbplot):
+                        figr, axis = plt.subplots(figsize=(12, 4))
+                        
+                        if a == 0:
+                            if k == 0:
+                                strgyaxi = 'x'
+                                posi = gdat.xposimag
+                            else:
+                                strgyaxi = 'y'
+                                posi = gdat.yposimag
+                            strgplot = 'cent'
+                            temp = np.sum(posi[None, :, :, None] * gdat.cntpdata, axis=(0, 1, 2)) / np.sum(gdat.cntpdata, axis=(0, 1, 2))
+                        else:
+                            temp = gdat.cbvs[:, k]
+                            strgyaxi = 'CBV$_{%d}$' % k
+                            posi = gdat.xposimag
+                            strgplot = 'cbvs'
+                        axis.plot(gdat.listtime[o], temp, ls='', marker='.', ms=1)
+                        axis.set_ylabel('%s' % strgyaxi)
+                        axis.set_xlabel('Time [BJD]')
+                        path = gdat.pathimagtarg + '%s_%s_%02d.%s' % (strgplot, strgsecc, k, gdat.strgplotextn)
+                        print('Writing to %s...' % path)
+                        plt.savefig(path)
+                        plt.close()
 
         if gdat.listpixlaper is not None:
             gdat.cntpaper = np.zeros(gdta.numbtime[o])
@@ -1113,50 +1289,25 @@ def init( \
             magttrue = np.zeros((1, gdat.numbtime[o], numbstar))
             magttrue[:] = np.random.random(numbstar)[None, None, :] * 8 + 12.
             if truesourtype == 'supr':
-                magttrue[0, :, 0] = 10. / (np.exp(10. * (gdat.listtime / gdat.numbtime[o] - 0.5)) + 1.) + 16.
+                magttrue[0, :, 0] = 10. / (np.exp(10. * (gdat.listtime[o] / gdat.numbtime[o] - 0.5)) + 1.) + 16.
             fluxtrue = 10**(0.4 * (20.4 - magttrue)) * gdat.timeexpo
-            if boolcenttran:
-                indxtimetran = []
-                for t in gdat.indxtime:
-                    if gdat.listtime[t] % 4. < 0.5:
-                        indxtimetran.append(t)
-                indxtimetran = np.array(indxtimetran)
-                magttrue[0, indxtimetran, 0] *= 1e-3
+            indxtimetran = []
+            for t in gdat.indxtime[o]:
+                if gdat.listtime[o][t] % 4. < 0.5:
+                    indxtimetran.append(t)
+            indxtimetran = np.array(indxtimetran)
+            magttrue[0, indxtimetran, 0] *= 1e-3
             xpostrue = gdat.numbside * np.random.random(numbstar)
             ypostrue = gdat.numbside * np.random.random(numbstar)
             xpostrue[0] = gdat.numbside / 2. 
             ypostrue[0] = gdat.numbside / 2. 
             cntpbacktrue = np.zeros(gdat.numbtime[o]) + 1800 * 100.
-            cntpdatatemp = retr_cntpmodl(gdat, coef, xpostrue, ypostrue, fluxtrue, cntpbacktrue)
+            cntpdatatemp = retr_cntpmodl(gdat, coef, xpostrue, ypostrue, fluxtrue, cntpbacktrue, o)
             gdat.cntpdata = np.random.poisson(cntpdatatemp).astype(float)
         
-        # filter input time series
-        gdat.indxtimefitt = np.arange(gdat.cntpdata.shape[2])
-        gdat.cntpdata = gdat.cntpdata[:, :, gdat.indxtimefitt]
-        gdat.listtime = gdat.listtime[gdat.indxtimefitt]
+            gdat.refrtime[o] = gdat.listtime[o]
         
-        # rebin the data along the time axis
-        gdat.listcade = np.ones_like(gdat.listtime) * gdat.timeexpo
-        if gdat.facttimerebn != 1:
-            print('Rebinning the data...')
-            indxtimerebn = np.arange(0, len(gdat.listtime), gdat.facttimerebn)
-            indxtimerebn = np.concatenate([indxtimerebn, np.array([gdat.listtime.size])])
-            listtimetemp = np.empty(indxtimerebn.size - 1)
-            for t in range(len(indxtimerebn) - 1):
-                listtimetemp[t] = np.mean(gdat.listtime[indxtimerebn[t]:indxtimerebn[t+1]])
-            gdat.listtime = np.copy(listtimetemp)
-
-        gdat.numbtime[o] = gdat.listtime.size
-        gdat.indxtime = np.arange(gdat.numbtime[o])
-
-        if gdat.typedata != 'mock':
-            objttimedata = astropy.time.Time(gdat.listtime + 2457000, format='jd', scale='utc')
-            gdat.timedata[o] = objttimedata.jd
-        else:
-            gdat.timedata[o] = gdat.listtime
-            gdat.refrtime[o] = gdat.listtime
-        
-        if gdat.boolplotquat:
+        if len(os.listdir(gdat.pathcbvs)) == 0 and gdat.boolplotquat:
             print('Reading quaternions...')
             path = gdat.pathdata + 'quat/'
             listfile = fnmatch.filter(os.listdir(path), 'tess*_sector%02d-quat.fits' % gdat.listtsec[o])
@@ -1170,18 +1321,18 @@ def init( \
             quat = np.empty((gdat.numbtime[o], 3))
             for k in range(1, 4):
                 strg = 'C%d_Q%d' % (gdat.listtcam[o], k)
-                quat[:, k-1] = scipy.interpolate.interp1d(dataquat['TIME']+2457000,  dataquat[strg], fill_value=0, bounds_error=False)(gdat.timedata[o])
+                quat[:, k-1] = scipy.interpolate.interp1d(dataquat['TIME']+2457000,  dataquat[strg], fill_value=0, bounds_error=False)(gdat.listtime[o])
                 minm = np.percentile(dataquat[strg], 0.05)
                 maxm = np.percentile(dataquat[strg], 99.95)
                 axis[k-1].plot(dataquat['TIME']+2457000, dataquat[strg], ls='', marker='.', ms=1)
                 axis[k-1].set_ylim([minm, maxm])
                 axis[k-1].set_ylabel('$Q_{%d}$' % k)
             axis[2].set_xlabel('Time [BJD]')
-            path = gdat.pathimagobjt + 'quat_sc%02d.%s' % (gdat.listtsec[o], gdat.strgplotextn)
+            path = gdat.pathimagtarg + 'quat_sc%02d.%s' % (gdat.listtsec[o], gdat.strgplotextn)
             print('Writing to %s...' % path)
             plt.savefig(path)
             plt.close()
-
+        
         if not np.isfinite(gdat.cntpdata).all():
             print('Warning! Not all data are finite.')
         
@@ -1196,7 +1347,7 @@ def init( \
                 gdat.catlrefr[q]['xpos'] = xpostrue
                 gdat.catlrefr[q]['ypos'] = ypostrue
             else:
-                catlrefrposi = listobjtwcss[o].all_world2pix(catlrefrskyy, 0)
+                catlrefrposi = gdat.listobjtwcss[o].all_world2pix(catlrefrskyy, 0)
                 gdat.catlrefr[q]['xpos'] = catlrefrposi[:, 0]
                 gdat.catlrefr[q]['ypos'] = catlrefrposi[:, 1]
             
@@ -1243,13 +1394,13 @@ def init( \
             gdat.declfitt[0] = gdat.decltarg
             gdat.rascfitt[1:] = gdat.catlrefrfilt[0]['rasc']
             gdat.declfitt[1:] = gdat.catlrefrfilt[0]['decl']
-            if gdat.psfntype == 'ontf':
+            if gdat.typepsfn == 'ontf':
                 gdat.cntsfitt = np.concatenate((np.array([0.]), gdat.catlrefrfilt[0]['cnts']))
                 print('Do not know what counts to assume for the target (for the on-the-fly PSF fit). Assuming 0!')
         else:
             gdat.rascfitt = gdat.catlrefrfilt[0]['rasc']
             gdat.declfitt = gdat.catlrefrfilt[0]['decl']
-            if gdat.psfntype == 'ontf':
+            if gdat.typepsfn == 'ontf':
                 gdat.cntsfitt = gdat.catlrefrfilt[0]['cnts']
         
         skyyfitttemp = np.empty((gdat.rascfitt.size, 2))
@@ -1258,7 +1409,7 @@ def init( \
         if gdat.rascfitt.size == 0:
             raise Exception('')
         # transform sky coordinates into dedector coordinates and filter
-        posifitttemp = listobjtwcss[o].all_world2pix(skyyfitttemp, 0)
+        posifitttemp = gdat.listobjtwcss[o].all_world2pix(skyyfitttemp, 0)
         gdat.xposfitt = posifitttemp[:, 0]
         gdat.yposfitt = posifitttemp[:, 1]
         
@@ -1310,7 +1461,7 @@ def init( \
         if gdat.cntpdata.shape[1] != gdat.numbside:
             raise Exception('')
 
-        if gdat.psfntype == 'lion':
+        if gdat.typepsfn == 'lion':
             gdat.gdatlion.numbtime = 1
             gdat.gdatlion.indxtime = [0]
         
@@ -1326,7 +1477,7 @@ def init( \
         #
 
         # fit for the PSF
-        if gdat.psfntype == 'ontf':
+        if gdat.typepsfn == 'ontf':
             numbsampwalk = 200000
             numbsampburnwalk = int(0.1 * numbsampwalk)
             numbsampburnwalkseco = int(0.5 * numbsampwalk)
@@ -1341,9 +1492,9 @@ def init( \
             # plot the median image
             if gdat.boolplotcntp:
                 for typecntpscal in gdat.listtypecntpscal:
-                    nameplot = '%scntpdatatmed' % (gdat.pathimagobjtpsfn)
+                    nameplot = '%scntpdatatmed' % (gdat.pathimagtargpsfn)
                     strgtitl = gdat.strgtitlcntpplot
-                    plot_cntp(gdat, gdat.cntpdatatmed, o, typecntpscal, nameplotcntp, strgdataextn, strgtitl=strgtitl)
+                    plot_cntp(gdat, gdat.cntpdatatmed, o, typecntpscal, nameplotcntp, strgsave, strgtitl=strgtitl)
 
             listlablpara = []
             for k in indxcoef:
@@ -1376,11 +1527,11 @@ def init( \
                 listmaxmpara[1] = 5. 
                 coef = np.array([1., 1.])
             
-            if gdat.psfnshaptype == 'gaus' or gdat.psfntype == 'gfre' or gdat.psfntype == 'pfre':
+            if gdat.psfnshaptype == 'gaus' or gdat.typepsfn == 'gfre' or gdat.typepsfn == 'pfre':
                 # solve for the maximum likelihood fluxes for the median image
                 matrdesi = np.ones((gdat.numbpixl, gdat.numbstar + 1))
                 for k in np.arange(gdat.numbstar):
-                    matrdesi[:, k] = retr_cntpmodl(gdat, coef, gdat.xposfitt[k, None], gdat.yposfitt[k, None], np.array([[1.]]), np.array([0.])).flatten()
+                    matrdesi[:, k] = retr_cntpmodl(gdat, coef, gdat.xposfitt[k, None], gdat.yposfitt[k, None], np.array([[1.]]), np.array([0.]), o).flatten()
                 matrdesi[:, gdat.numbstar] = 1.
                 gdat.mlikfittfluxmedi, gdat.covafittfluxmedi = retr_mlikflux(gdat.cntpdatatmed, matrdesi, gdat.cntpdatatmed)
             
@@ -1388,7 +1539,7 @@ def init( \
             listminmpara[gdat.numbcoef] = 0.
             listmaxmpara[gdat.numbcoef] = np.amax(gdat.cntpdatatmed)#abs(gdat.mlikfittfluxmedi[-1]) * 2.
             
-            if gdat.psfnshaptype == 'gfreffix' or gdat.psfntype =='gfrefinf':
+            if gdat.psfnshaptype == 'gfreffix' or gdat.typepsfn =='gfrefinf':
                 listminmpara[gdat.numbcoef+1] = 0.
                 listmaxmpara[gdat.numbcoef+1] = 10000.
                 if gdat.psfnshaptype == 'gfrefinf':
@@ -1403,10 +1554,10 @@ def init( \
             
             strgextn = 'psfn'
             numbdata = gdat.numbpixl
-            strgsaveextn = gdat.pathdataobjt + gdat.psfnshaptype + '_' + gdat.strgcnfg + '.txt'
-            parapost = tdpy.mcmc.samp(gdat, gdat.pathimagobjtpsfn, numbsampwalk, numbsampburnwalk, numbsampburnwalkseco, retr_llik, \
+            strgsaveextnmcmc = gdat.pathdatatarg + gdat.psfnshaptype + '_' + gdat.strgcnfg + '.txt'
+            parapost = tdpy.mcmc.samp(gdat, gdat.pathimagtargpsfn, numbsampwalk, numbsampburnwalk, numbsampburnwalkseco, retr_llik, \
                                             listlablpara, listscalpara, listminmpara, listmaxmpara, listmeangauspara, liststdvgauspara, \
-                                                numbdata, strgextn=strgextn, strgplotextn=strgplotextn, strgsaveextn=strgsaveextn)
+                                                numbdata, strgextn=strgextn, strgplotextn=strgplotextn, strgsaveextn=strgsaveextnmcmc)
             
             paramedi = np.median(parapost, 0)
             coefmedi = paramedi[:gdat.numbcoef]
@@ -1425,11 +1576,11 @@ def init( \
                 ypossour = np.array([(gdat.numbside - 1.) / 2.])
                 flux = np.array([[1.]])
                 cntpback = np.zeros(1)
-                gdat.cntpmodlpsfn = retr_cntpmodl(gdat, coefmedi, xpossour, ypossour, flux, cntpback, verbtype=1)
-                nameplot = '%scntpmodlpsfnmedi' % (gdat.pathimagobjtpsfn)
+                gdat.cntpmodlpsfn = retr_cntpmodl(gdat, coefmedi, xpossour, ypossour, flux, cntpback, o, verbtype=1)
+                nameplot = '%scntpmodlpsfnmedi' % (gdat.pathimagtargpsfn)
                 strgtitl = gdat.strgtitlcntpplot
                 for typecntpscal in gdat.listtypecntpscal:
-                    plot_cntp(gdat, gdat.cntpmodlpsfn[:, :, 0], o, typecntpscal, nameplotcntp, strgdataextn, strgtitl=strgtitl, boolanno=False)
+                    plot_cntp(gdat, gdat.cntpmodlpsfn[:, :, 0], o, typecntpscal, nameplotcntp, strgsave, strgtitl=strgtitl, boolanno=False)
 
                 # plot the posterior median image model
                 if gdat.psfnshaptype == 'gfreffix':
@@ -1438,30 +1589,35 @@ def init( \
                     flux = gdat.cntsfitt * ampltotlmedi * amplrelamedi
                 elif gdat.psfnshaptype == 'gfreffre':
                     flux = fluxmedi
-                gdat.cntpmodlpsfn = retr_cntpmodl(gdat, coefmedi, gdat.xposfitt, gdat.yposfitt, flux, cntpbackmedi)
+                gdat.cntpmodlpsfn = retr_cntpmodl(gdat, coefmedi, gdat.xposfitt, gdat.yposfitt, flux, cntpbackmedi, o)
                 
-                nameplot = '%scntpmodlmedi' % (gdat.pathimagobjtpsfn)
+                nameplot = '%scntpmodlmedi' % (gdat.pathimagtargpsfn)
                 strgtitl = gdat.strgtitlcntpplot
                 for typecntpscal in gdat.listtypecntpscal:
-                    plot_cntp(gdat, gdat.cntpmodlpsfn[:, :, 0], o, typecntpscal, nameplotcntp, strgdataextn, strgtitl=strgtitl)
+                    plot_cntp(gdat, gdat.cntpmodlpsfn[:, :, 0], o, typecntpscal, nameplotcntp, strgsave, strgtitl=strgtitl)
 
                 # plot the posterior median residual
-                nameplot = '%scntpresimedi' % (gdat.pathimagobjtpsfn)
+                nameplot = '%scntpresimedi' % (gdat.pathimagtargpsfn)
                 strgtitl = gdat.strgtitlcntpplot
                 for typecntpscal in gdat.listtypecntpscal:
-                    plot_cntp(gdat, gdat.cntpdatatmed - gdat.cntpmodlpsfn[:, :, 0], o, typecntpscal, nameplotcntp, strgdataextn, \
+                    plot_cntp(gdat, gdat.cntpdatatmed - gdat.cntpmodlpsfn[:, :, 0], o, typecntpscal, nameplotcntp, strgsave, \
                                                                                                                     strgtitl=strgtitl, boolresi=True)
 
         if gdat.boolanim:
             if gdat.boolanimframtotl:
-                numbplotanim = gdat.numbtime[o].size
+                numbplotanim = gdat.numbtime[o]
             else:
                 numbplotanim = 10
             # time indices to be included in the animation
-            indxtimeanim = np.linspace(0., gdat.numbtime[o] - 1., numbplotanim).astype(int)
-        
+            gdat.indxtimeanim = np.linspace(0., gdat.numbtime[o] - 1., numbplotanim).astype(int)
+            print('gdat.numbtime')
+            print(gdat.numbtime)
+            print('numbplotanim')
+            print(numbplotanim)
+            print('gdat.indxtimeanim')
+            summgene(gdat.indxtimeanim)
             # get time string
-            objttime = astropy.time.Time(gdat.timedata[o], format='jd', scale='utc', out_subfmt='date_hm')
+            objttime = astropy.time.Time(gdat.listtime[o], format='jd', scale='utc', out_subfmt='date_hm')
             listtimelabl = objttime.iso
         
         gdat.offs = 0.5
@@ -1476,11 +1632,11 @@ def init( \
                     continue
 
                 strgoffs = retr_strgoffs(gdat, x, y)
-                strgdataextn = retr_strgdataextn(gdat, strgsecc, strgoffs, gdat.typecade[o])
-                pathsaverflx = gdat.pathdataobjt + 'rflx' + strgdataextn + '.csv'
-                pathsaverflxtarg = gdat.pathdataobjt + 'rflxtarg' + strgdataextn + '.csv'
-                pathsaverflxtargbdtr = gdat.pathdataobjt + 'rflxtargbdtr' + strgdataextn + '.csv'
-                pathsavemeta = gdat.pathdataobjt + 'meta' + strgdataextn + '.csv'
+                strgsave = retr_strgsave(gdat, strgsecc, strgoffs, gdat.typecade[o])
+                pathsaverflx = gdat.pathdatatarg + 'rflx' + strgsave + '.csv'
+                pathsaverflxtarg = gdat.pathdatatarg + 'rflxtarg' + strgsave + '.csv'
+                pathsaverflxtargbdtr = gdat.pathdatatarg + 'rflxtargbdtr' + strgsave + '.csv'
+                pathsavemeta = gdat.pathdatatarg + 'meta' + strgsave + '.csv'
         
                 # plot a histogram of data counts
                 if gdat.boolplothhistcntp:
@@ -1492,7 +1648,7 @@ def init( \
                     axis.set_ylabel('N')
                     axis.set_xlabel('C [e$^{-}$]')
                     plt.tight_layout()
-                    path = gdat.pathimagobjt + 'histcntpdata_%s.%s' % (strgdataextn, gdat.strgplotextn)
+                    path = gdat.pathimagtarg + 'histcntpdata_%s.%s' % (strgsave, gdat.strgplotextn)
                     print('Writing to %s...' % path)
                     plt.savefig(path)
                     plt.close()
@@ -1505,28 +1661,92 @@ def init( \
                 
                 if not os.path.exists(pathsaverflx):
                     
+                    timeinit = timemodu.time()
                     gdat.covafittflux = np.empty((gdat.numbtime[o], gdat.numbstar + 1, gdat.numbstar + 1))
                     gdat.mlikfittflux = np.empty((gdat.numbtime[o], gdat.numbstar + 1))
                     matrdesi = np.ones((gdat.numbpixl, gdat.numbstar + 1))
-
-                    print('Evaluating the PSFs to create templates for the design matrix...')
+                    
+                    print('Solving for the best-fit raw light curves of the sources...')
                     coef = None
                     fluxtemp = np.ones((1, gdat.numbstar))
                     cntptemp = np.zeros(1)
                     for k in np.arange(gdat.numbstar):
-                        matrdesi[:, k] = retr_cntpmodl(gdat, xpostemp[k, None], ypostemp[k, None], fluxtemp[:, k, None], cntptemp, coef).flatten()
+                        matrdesi[:, k] = retr_cntpmodl(gdat, xpostemp[k, None], ypostemp[k, None], fluxtemp[:, k, None], cntptemp, o, coef=coef).flatten()
                             
                     # solve the linear system
-                    print('Solving the linear systems of equations...')
-                    timeinit = timemodu.time()
-                    for t in gdat.indxtime:
+                    for t in gdat.indxtime[o]:
+                        
+                        if t == 0:
+                            print('gdat.cntpdata[:, :, t]')
+                            summgene(gdat.cntpdata[:, :, t])
+                            print('matrdesi')
+                            summgene(matrdesi)
+                            print('gdat.vari[:, :, t]')
+                            summgene(gdat.vari[:, :, t])
+
                         gdat.mlikfittflux[t, :], gdat.covafittflux[t, :, :] = retr_mlikflux(gdat.cntpdata[:, :, t], matrdesi, gdat.vari[:, :, t])
 
-                    timefinl = timemodu.time()
-                    print('Done in %g seconds.' % (timefinl - timeinit))
-                    
+                    if not np.isfinite(gdat.covafittflux).all():
+                        indxbaddpixl = (~np.isfinite(gdat.covafittflux)).any(0)
+                        print('indxbaddpixl')
+                        print(indxbaddpixl)
+                        indxbaddtime = (~np.isfinite(gdat.covafittflux)).any(1).any(1)
+                        print('indxbaddtime')
+                        summgene(indxbaddtime)
+                        print('gdat.vari')
+                        summgene(gdat.vari)
+                        print('gdat.cntpdata')
+                        summgene(gdat.cntpdata)
+                        print('matrdesi')
+                        summgene(matrdesi)
+                        #raise Exception('')
+
                     for k in gdat.indxcomp:
                         gdat.stdvfittflux[:, k] = np.sqrt(gdat.covafittflux[:, k, k])
+                        
+                        if not np.isfinite(gdat.stdvfittflux[:, k]).all():
+                            print('temp: error went NaN because of negative covariance. Reseting error to 1e-2')
+                            gdat.stdvfittflux[:, k] = 1e-2
+                            print('k')
+                            print(k)
+                            print('gdat.covafittflux[:, k, k]')
+                            summgene(gdat.covafittflux[:, k, k])
+                            print('np.isfinite(gdat.stdvfittflux[:, k])')
+                            summgene(np.isfinite(gdat.stdvfittflux[:, k]))
+                            #raise Exception('')
+                    
+                    gdat.varifittflux = gdat.stdvfittflux**2
+        
+                    if gdat.boolcbvs:
+                        # light curve before CBV-detrending
+                        gdat.mlikfittfluxraww = np.copy(gdat.mlikfittflux[:, 0])
+
+                        # subtract CBVs
+                        print('Solving for the detrended target light curve using the CBVs and the raw light curve...')
+                        print('gdat.mlikfittflux[:, 0]')
+                        summgene(gdat.mlikfittflux[:, 0])
+                        print('gdat.varifittflux[:, 0]')
+                        summgene(gdat.varifittflux[:, 0])
+                        #for k in range(gdat.numbcbvs+1):
+                        #    print('gdat.cbvstmpt[:, k]')
+                        #    summgene(gdat.cbvstmpt[:, k])
+                        gdat.mlikamplcbvs, gdat.covaamplcbvs = retr_mlikflux(gdat.mlikfittflux[:, 0], gdat.cbvstmpt, gdat.varifittflux[:, 0])
+                        print('gdat.mlikamplcbvs')
+                        print(gdat.mlikamplcbvs)
+                        rflxcbvs = gdat.mlikamplcbvs[None, :] * gdat.cbvstmpt
+                        for k in range(gdat.numbcbvs+1):
+                            print('rflxcbvs[:, k]')
+                            summgene(rflxcbvs[:, k])
+                        rflxcbvstotl = np.sum(rflxcbvs[:, :-1], 1)
+                        print('rflxcbvstotl')
+                        summgene(rflxcbvstotl)
+                        gdat.mlikfittflux[:, 0] -= rflxcbvstotl
+                        print('gdat.mlikfittflux[:, 0]')
+                        summgene(gdat.mlikfittflux[:, 0])
+                        print('')
+                        
+                    timefinl = timemodu.time()
+                    print('Done in %g seconds.' % (timefinl - timeinit))
                     
                     gdat.medifittflux = np.median(gdat.mlikfittflux, 0)
                     print('Median flux of the central source is %g ADU.' % gdat.medifittflux[0])
@@ -1537,8 +1757,8 @@ def init( \
                     gdat.stdvfittrflx = gdat.stdvfittflux / gdat.medifittflux[None, :]
                     
                     if gdat.booldiagmode:
-                        for a in range(gdat.timedata[o].size):
-                            if a != gdat.timedata[o].size - 1 and gdat.timedata[o][a] >= gdat.timedata[o][a+1]:
+                        for a in range(gdat.listtime[o].size):
+                            if a != gdat.listtime[o].size - 1 and gdat.listtime[o][a] >= gdat.listtime[o][a+1]:
                                 raise Exception('')
 
                     # write the light curve to file
@@ -1547,7 +1767,7 @@ def init( \
                     np.savetxt(pathsavemeta, arry)
                     
                     arry = np.empty((gdat.numbtime[o], 2*gdat.numbcomp+1))
-                    arry[:, 0] = gdat.timedata[o]
+                    arry[:, 0] = gdat.listtime[o]
                     for k in gdat.indxcomp:
                         arry[:, 2*k+1] = gdat.mlikfittrflx[:, k]
                         arry[:, 2*k+2] = gdat.stdvfittrflx[:, k]
@@ -1566,12 +1786,9 @@ def init( \
                 else:
                     print('Skipping the regression...')
                 
-                if gdat.boolplotrflx:
                     nameplot = 'rflx'
-                    path = retr_pathvisu(gdat, nameplot, strgdataextn)
-                    if os.path.exists(path):
-                        print('Plots already exist at %s...' % path)
-                    else:
+                    path = retr_pathvisu(gdat, nameplot, strgsave)
+                    if not os.path.exists(path):
                     
                         print('Reading from %s...' % pathsavemeta)
                         gdat.medifittflux = np.loadtxt(pathsavemeta)
@@ -1580,17 +1797,27 @@ def init( \
                         gdat.stdvfittrflx = np.empty((gdat.numbtime[o], gdat.numbcomp))
                         print('Reading from %s...' % pathsaverflx)
                         arry = np.loadtxt(pathsaverflx)
-                        gdat.timedata[o] = arry[:, 0]
+                        gdat.listtime[o] = arry[:, 0]
                         for k in gdat.indxcomp:
-                            gdat.mlikfittrflx[:, k] = arry[:, 2*k+1]
+                            try:
+                                gdat.mlikfittrflx[:, k] = arry[:, 2*k+1]
+                            except:
+                                print('arry')
+                                summgene(arry)
+                                print('gdat.mlikfittrflx')
+                                summgene(gdat.mlikfittrflx)
+                                raise Exception('')
                             gdat.stdvfittrflx[:, k] = arry[:, 2*k+2]
                         gdat.mlikfittflux = gdat.medifittflux * gdat.mlikfittrflx
+                        gdat.listarry[o] = arry[:, :3]
+                    else:
+                        print('Plots already exist at %s...' % path)
                 
                 print('Evaluating the model at all time bins...')
                 cntpbackneww = gdat.mlikfittflux[:, -1]
                 timeinit = timemodu.time()
                 coef = None
-                gdat.cntpmodl = retr_cntpmodl(gdat, xpostemp, ypostemp, gdat.mlikfittflux[:, :-1], cntpbackneww, coef)
+                gdat.cntpmodl = retr_cntpmodl(gdat, xpostemp, ypostemp, gdat.mlikfittflux[:, :-1], cntpbackneww, o, coef=coef)
                 print('gdat.cntpmodl')
                 summgene(gdat.cntpmodl)
                 print('gdat.cntpdata')
@@ -1609,134 +1836,106 @@ def init( \
                     for strg in ['modl', 'resi', 'datanbkg']:
                         setp_cntp(gdat, strg, typecntpscal)
                 
-                if gdat.boolplotrflx:
-                    if not os.path.exists(path):
-                        print('Plotting light curves...')
-                        if gdat.listlimttimetzom is not None:
-                            gdat.indxtimelimt = []
-                            for limttimeplot in gdat.listlimttimetzom:
-                                gdat.indxtimelimt.append(np.where((gdat.timedata[o] > limttimeplot[0]) & (gdat.timedata[o] < limttimeplot[1]))[0])
+                if not os.path.exists(pathsaverflx) and gdat.boolplotrflx:
+                    print('Plotting light curves...')
+                    if gdat.listlimttimetzom is not None:
+                        gdat.indxtimelimt = []
+                        for limttimeplot in gdat.listlimttimetzom:
+                            gdat.indxtimelimt.append(np.where((gdat.listtime[o] > limttimeplot[0]) & (gdat.listtime[o] < limttimeplot[1]))[0])
                     
-                        # plot light curve derived from aperture photometry
-                        if gdat.listpixlaper is not None:
-                            plot_lcur(gdat, gdat.cntpaper, 0.01 * gdat.cntpaper, k, o, '_' + strgsecc, gdat.booltpxf[o], '_aper', strgdataextn)
+                    # plot light curve derived from aperture photometry
+                    if gdat.listpixlaper is not None:
+                        plot_lcur(gdat, gdat.cntpaper, 0.01 * gdat.cntpaper, k, o, '_' + strgsecc, gdat.booltpxf[o], '_aper', strgsave)
+                        
+                    if gdat.boolcbvs:
+                        plot_lcur(gdat, gdat.mlikfittfluxraww, 0 * gdat.mlikfittfluxraww, 0, o, '_' + strgsecc, gdat.booltpxf[o], strgoffs, strgsave)
+                        
+                    # plot the light curve of the target stars and background
+                    for k in gdat.indxcomp:
+
+                        if x == 1 and y == 1 or k == 0:
+
+                            if gdat.boolrefr[o] and x == 1 and y == 1:
+                                listmodeplot = [0, 1]
+                            else:
+                                listmodeplot = [0]
+                            plot_lcur(gdat, gdat.mlikfittrflx[:, k], gdat.stdvfittrflx[:, k], k, o, '_' + strgsecc, \
+                                                                             gdat.booltpxf[o], strgoffs, strgsave, listmodeplot=listmodeplot)
                             
-                        # plot the light curve of the target stars and background
-                        for k in gdat.indxcomp:
-
-                            if gdat.boolbdtr and (x == 1 and y == 1) or not gdat.boolbdtr and (k == 0 and x == 1 and y == 1):
-
-                                if gdat.boolrefr[o] and x == 1 and y == 1:
-                                    listmodeplot = [0, 1]
-                                else:
-                                    listmodeplot = [0]
-                                plot_lcur(gdat, gdat.mlikfittrflx[:, k], gdat.stdvfittrflx[:, k], k, o, '_' + strgsecc, \
-                                                                                 gdat.booltpxf[o], strgoffs, strgdataextn, listmodeplot=listmodeplot)
-                                
-                                if gdat.listlimttimetzom is not None:
-                                    for p in range(len(gdat.listlimttimetzom)):
-                                        plot_lcur(gdat, gdat.mlikfittrflx[:, k], gdat.stdvfittrflx[:, k], k, o, '_' + strgsecc, gdat.booltpxf[o], strgoffs, \
-                                                                                       strgdataextn, indxtimelimt=gdat.indxtimelimt[p], indxtzom=p)
-                                        if k == 0:
-                                            plot_lcur(gdat, gdat.mlikfittflux[:, k], gdat.stdvfittflux[:, k], k, o, '_' + strgsecc, \
-                                                                                                    gdat.booltpxf[o], strgoffs, strgdataextn, \
-                                                                                              indxtimelimt=gdat.indxtimelimt[p], indxtzom=p)
-                                
-                        if gdat.boolbdtr:
-                            gdat.mlikrflxbdtr = np.empty_like(gdat.mlikfittrflx)
-                            gdat.mlikrflxspln = np.empty_like(gdat.mlikfittrflx)
-                            for k in gdat.indxcomp:
-                                
-                                if k > 0 and (x != 1 or y != 1):
-                                    continue
+                            if gdat.listlimttimetzom is not None:
+                                for p in range(len(gdat.listlimttimetzom)):
+                                    plot_lcur(gdat, gdat.mlikfittrflx[:, k], gdat.stdvfittrflx[:, k], k, o, '_' + strgsecc, gdat.booltpxf[o], strgoffs, \
+                                                                                   strgsave, indxtimelimt=gdat.indxtimelimt[p], indxtzom=p)
+                                    if k == 0:
+                                        plot_lcur(gdat, gdat.mlikfittflux[:, k], gdat.stdvfittflux[:, k], k, o, '_' + strgsecc, \
+                                                                                                gdat.booltpxf[o], strgoffs, strgsave, \
+                                                                                          indxtimelimt=gdat.indxtimelimt[p], indxtzom=p)
                             
-                                lcurbdtrregi, indxtimeregi, indxtimeregioutt, listobjtspln, timeedge = \
-                                                    tesstarg.util.bdtr_lcur(gdat.timedata[o], gdat.mlikfittrflx[:, k], \
-                                                    booladdddiscbdtr=gdat.booladdddiscbdtr, \
-                                                    bdtrtype=gdat.bdtrtype, verbtype=1)
-                                gdat.mlikrflxbdtr[:, k] = np.concatenate(lcurbdtrregi)
-                                gdat.mlikrflxspln[:, k] = 1. + gdat.mlikfittrflx[:, k] - gdat.mlikrflxbdtr[:, k]
-                                
-                                if k == 0:
-                                    arry = np.empty((gdat.numbtime[o], 3))
-                                    arry[:, 0] = gdat.timedata[o]
-                                    arry[:, 1] = gdat.mlikrflxbdtr[:, 0]
-                                    arry[:, 2] = gdat.stdvfittrflx[:, 0]
-                                    print('Writing the target light curve to %s...' % pathsaverflxtargbdtr)
-                                    np.savetxt(pathsaverflxtargbdtr, arry)
-                                
-                                plot_lcur(gdat, gdat.mlikrflxspln[:, k], gdat.stdvfittrflx[:, k], k, o, '_' + strgsecc, \
-                                                                                             gdat.booltpxf[o], strgoffs, strgdataextn, strgextn='_spln', \
-                                                                                                                                    timeedge=timeedge)
-                                plot_lcur(gdat, gdat.mlikrflxbdtr[:, k], gdat.stdvfittrflx[:, k], k, o, '_' + strgsecc, \
-                                                                                             gdat.booltpxf[o], strgoffs, strgdataextn, strgextn='_bdtr')
-                                if gdat.listlimttimetzom is not None:
-                                    for p in range(len(gdat.listlimttimetzom)):
-                                        plot_lcur(gdat, gdat.mlikrflxbdtr[:, k], gdat.stdvfittrflx[:, k], k, o, '_' + strgsecc, gdat.booltpxf[o], strgoffs, \
-                                                                       strgdataextn, indxtimelimt=gdat.indxtimelimt[p], strgextn='_bdtr', indxtzom=p)
-
-                        else:
-                            gdat.mlikrflxbdtr = gdat.mlikfittrflx[:, 0]
+                    else:
+                        gdat.mlikrflxbdtr = gdat.mlikfittrflx[:, 0]
                         
         # temporal types of image plots
         ## medians
-        listtypeplotcntp = ['medi']
+        listtypeplotcntp = []
+        if gdat.boolplotcntp:
+            listtypeplotcntp += ['medi']
         # cadence frames
         if gdat.boolanim:
             listtypeplotcntp += ['anim']
         
-        if gdat.boolplotcntp:
-            for typeplotcntp in listtypeplotcntp:
-                for nameplotcntp in listnameplotcntp:
-                    
-                    # make animation plot
-                    pathanim = retr_pathvisu(gdat, nameplotcntp, strgdataextn, boolanim=True)
-                    if typeplotcntp == 'anim' and not os.path.exists(path):
-                        continue
+        
+        for typeplotcntp in listtypeplotcntp:
+            for nameplotcntp in listnameplotcntp:
+                
+                # make animation plot
+                pathanim = retr_pathvisu(gdat, nameplotcntp, strgsave, boolanim=True)
+                if typeplotcntp == 'anim' and os.path.exists(pathanim):
+                    continue
 
+                if typeplotcntp == 'anim':
+                    print('Making an animation of frame plots...')
+                    strg = ''
+                else:
+                    strg = 'tmed'
+                cntptemp = getattr(gdat, nameplotcntp + strg)
+                
+                if nameplotcntp == 'cntpresi':
+                    boolresi = True
+                else:
+                    boolresi = False
+                
+                for typecntpscal in gdat.listtypecntpscal:
+                    # minimum and maximum
+                    vmin = getattr(gdat, 'vmin' + nameplotcntp + typecntpscal)
+                    vmax = getattr(gdat, 'vmax' + nameplotcntp + typecntpscal)
+                
+                    if typeplotcntp == 'medi':
+                        strgtitl = gdat.strgtitlcntpplot
+                        plot_cntp(gdat, cntptemp, o, typecntpscal, nameplotcntp, strgsave, strgtitl=strgtitl, boolresi=boolresi, vmin=vmin, vmax=vmax)
                     if typeplotcntp == 'anim':
-                        print('Making an animation of frame plots...')
-                        strg = ''
-                    else:
-                        strg = 'tmed'
-                    cntptemp = getattr(gdat, nameplotcntp + strg)
-                    
-                    if nameplotcntp == 'cntpresi':
-                        boolresi = True
-                    else:
-                        boolresi = False
-                    
-                    for typecntpscal in gdat.listtypecntpscal:
-                        # minimum and maximum
-                        vmin = getattr(gdat, 'vmin' + nameplotcntp + typecntpscal)
-                        vmax = getattr(gdat, 'vmax' + nameplotcntp + typecntpscal)
-                    
-                        if typeplotcntp == 'medi':
-                            strgtitl = gdat.strgtitlcntpplot
-                            plot_cntp(gdat, cntptemp, o, typecntpscal, nameplotcntp, strgdataextn, strgtitl=strgtitl, boolresi=boolresi, vmin=vmin, vmax=vmax)
-                        if typeplotcntp == 'anim':
-                            args = [gdat, cntptemp, o, typecntpscal, nameplotcntp, strgdataextn]
-                            kwag = {'indxtimeanim': indxtimeanim, 'nameplotcntp': nameplotcntp, \
-                                                'boolresi': boolresi, 'listindxpixlcolr': gdat.listpixlaper, \
-                                                'listtimelabl':listtimelabl, \
-                                                'vmin':vmin, 'vmax':vmax, \
-                                                'lcur':gdat.mlikfittrflx[:, 0], 'time':gdat.timedata[o]}
-                            listpath = plot_cntpwrap(*args, **kwag)
-                    
-                            # make animation
-                            cmnd = 'convert -delay 20 '
-                            for path in listpath:
-                                cmnd += '%s ' % path
-                            cmnd += '%s.gif' % pathanim
-                            os.system(cmnd)
-                            
-                            # delete images
-                            for path in listpath:
-                                os.system('rm %s' % path)
+                        args = [gdat, cntptemp, o, typecntpscal, nameplotcntp, strgsave]
+                        kwag = { \
+                                            'boolresi': boolresi, 'listindxpixlcolr': gdat.listpixlaper, \
+                                            'listtimelabl':listtimelabl, \
+                                            'vmin':vmin, 'vmax':vmax, \
+                                            'lcur':gdat.mlikfittrflx[:, 0], 'time':gdat.listtime[o]}
+                        listpath = plot_cntpwrap(*args, **kwag)
+                
+                        # make animation
+                        cmnd = 'convert -delay 20 '
+                        for path in listpath:
+                            cmnd += '%s ' % path
+                        cmnd += '%s' % pathanim
+                        os.system(cmnd)
+                        
+                        # delete images
+                        for path in listpath:
+                            os.system('rm %s' % path)
         
     timefinltotl = timemodu.time()
     print('Total execution time: %g seconds.' % (timefinltotl - timeinittotl))
     print('')                
+    gdat.dictoutp['strgtarg'] = gdat.strgtarg
     gdat.dictoutp['listarry'] = gdat.listarry
     
     return gdat.dictoutp
@@ -1765,7 +1964,7 @@ def init_list(pathfile, strgbase, **kwag):
         strgtarg = labltarg
         rasctarg = float(listline[1])
         decltarg = float(listline[2])
-        intgresu = main( \
+        intgresu = init( \
                         strgtarg=strgtarg, \
                         rasctarg=rasctarg, \
                         decltarg=decltarg, \

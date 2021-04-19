@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name = 'lygos',
     packages = find_packages(),
-    version = '1.1',
+    version = '1.14',
     description = 'PSF modeling of images in time domain astronomy', 
     author = 'Tansu Daylan',
     author_email = 'tansu.daylan@gmail.com',
@@ -14,7 +14,8 @@ setup(
                  'Intended Audience :: Science/Research',
                  'License :: OSI Approved :: MIT License',
                  'Programming Language :: Python'],
-    #install_requires=['astrophy>=3'],
-    include_package_data = True
+    #install_requires=['numpy', 'scipy', 'tqdm', 'h5py', 'tdpy'],
+    python_requires='>=3'
+    #include_package_data = True
     )
 
