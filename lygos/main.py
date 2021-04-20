@@ -465,6 +465,7 @@ def init( \
          ## mask
          ### Boolean flag to put a cut on quality flag
          boolcuttqual=True, \
+         ## limits of time between which the quality mask will be ignored
          limttimeignoqual=None, \
 
          ### masking region
@@ -473,6 +474,7 @@ def init( \
          duramask=None, \
          
          # processing
+         ## Boolean flag to turn on CBV detrending
          boolcbvs=True, \
 
          # string indicating the cluster of targets
