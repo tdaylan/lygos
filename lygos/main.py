@@ -374,8 +374,9 @@ def retr_llik(gdat, para):
 
 
 #@jit(nopython=True, parallel=True, fastmath=True, nogil=True)
-def retr_mlikflux(cntpdata, matrdesi, vari):
-    
+def retr_mlikregr(cntpdata, matrdesi, vari):
+    """Return the maximum likelihood estimate for linear regression."""
+
     varitdim = np.diag(vari.flatten())
     covafittflux = np.linalg.inv(np.matmul(np.matmul(matrdesi.T, np.linalg.inv(varitdim)), matrdesi))
     mlikfittflux = np.matmul(np.matmul(np.matmul(covafittflux, matrdesi.T), np.linalg.inv(varitdim)), cntpdata.flatten())
@@ -1535,7 +1536,7 @@ def init( \
                 for k in np.arange(gdat.numbstar):
                     matrdesi[:, k] = retr_cntpmodl(gdat, coef, gdat.xposfitt[k, None], gdat.yposfitt[k, None], np.array([[1.]]), np.array([0.]), o).flatten()
                 matrdesi[:, gdat.numbstar] = 1.
-                gdat.mlikfittfluxmedi, gdat.covafittfluxmedi = retr_mlikflux(gdat.cntpdatatmed, matrdesi, gdat.cntpdatatmed)
+                gdat.mlikfittfluxmedi, gdat.covafittfluxmedi = retr_mlikregr(gdat.cntpdatatmed, matrdesi, gdat.cntpdatatmed)
             
             # background
             listminmpara[gdat.numbcoef] = 0.
@@ -1686,7 +1687,7 @@ def init( \
                             print('gdat.vari[:, :, t]')
                             summgene(gdat.vari[:, :, t])
 
-                        gdat.mlikfittflux[t, :], gdat.covafittflux[t, :, :] = retr_mlikflux(gdat.cntpdata[:, :, t], matrdesi, gdat.vari[:, :, t])
+                        gdat.mlikfittflux[t, :], gdat.covafittflux[t, :, :] = retr_mlikregr(gdat.cntpdata[:, :, t], matrdesi, gdat.vari[:, :, t])
 
                     if not np.isfinite(gdat.covafittflux).all():
                         indxbaddpixl = (~np.isfinite(gdat.covafittflux)).any(0)
@@ -1732,7 +1733,7 @@ def init( \
                         #for k in range(gdat.numbcbvs+1):
                         #    print('gdat.cbvstmpt[:, k]')
                         #    summgene(gdat.cbvstmpt[:, k])
-                        gdat.mlikamplcbvs, gdat.covaamplcbvs = retr_mlikflux(gdat.mlikfittflux[:, 0], gdat.cbvstmpt, gdat.varifittflux[:, 0])
+                        gdat.mlikamplcbvs, gdat.covaamplcbvs = retr_mlikregr(gdat.mlikfittflux[:, 0], gdat.cbvstmpt, gdat.varifittflux[:, 0])
                         print('gdat.mlikamplcbvs')
                         print(gdat.mlikamplcbvs)
                         rflxcbvs = gdat.mlikamplcbvs[None, :] * gdat.cbvstmpt
