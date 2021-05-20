@@ -11,6 +11,17 @@ import h5py
 
 import pandas as pd
 
+import matplotlib.pyplot as plt
+import numpy as np
+x = np.arange(10)
+figrsizeydob = [8., 4.]
+figr, axis = plt.subplots(figsize=figrsizeydob)
+axis.plot(x, x)
+axis.set_ylabel('Flux')
+axis.set_xlabel('Time [BJD]')
+plt.savefig('/Users/tdaylan/Desktop/test5.pdf')
+plt.close()
+            
 import emcee
 
 import os, datetime, fnmatch
@@ -32,8 +43,30 @@ from tdpy.util import summgene
 import tdpy.util
 import ephesus.util
 
+import matplotlib.pyplot as plt
+import numpy as np
+x = np.arange(10)
+figrsizeydob = [8., 4.]
+figr, axis = plt.subplots(figsize=figrsizeydob)
+axis.plot(x, x)
+axis.set_ylabel('Flux')
+axis.set_xlabel('Time [BJD]')
+plt.savefig('/Users/tdaylan/Desktop/test6.pdf')
+plt.close()
+            
 from lion import main as lionmain
 
+import matplotlib.pyplot as plt
+import numpy as np
+x = np.arange(10)
+figrsizeydob = [8., 4.]
+figr, axis = plt.subplots(figsize=figrsizeydob)
+axis.plot(x, x)
+axis.set_ylabel('Flux')
+axis.set_xlabel('Time [BJD]')
+plt.savefig('/Users/tdaylan/Desktop/test7.pdf')
+plt.close()
+            
 
 def read_psfntess(a, b, k, l):
     
@@ -501,6 +534,9 @@ def init( \
         
          # diagnostics
          booldiagmode=True, \
+        
+         # Boolean flag to calculate the contamination ratio
+         boolcalcconr = False, \
 
          # model
          ## factor by which to rebin the data along time
@@ -1176,9 +1212,7 @@ def init( \
             
             # read the FITS files
             ## time
-            print('gdat.listhdundata[o][1].data[QUALITY]')
-            summgene(gdat.listhdundata[o][1].data['QUALITY'])
-            print(gdat.listhdundata[o][1].data.names)
+            #print(gdat.listhdundata[o][1].data.names)
             gdat.listtime[o] = gdat.listhdundata[o][1].data['TIME'] + 2457000
             diff = gdat.listtime[o][1:] - gdat.listtime[o][:-1]
             
@@ -1212,6 +1246,8 @@ def init( \
         gdat.cntpdata = gdat.cntpdata[:, :, indxtimedatagood]
         
         gdat.numbtime[o] = gdat.listtime[o].size
+        print('gdat.numbtime[o]')
+        print(gdat.numbtime[o])
         gdat.indxtime[o] = np.arange(gdat.numbtime[o])
         
         gdat.gdatlion.numbtime = gdat.numbtime[o]
@@ -1227,8 +1263,12 @@ def init( \
         print(gdat.pathcbvs)
         #if len(os.listdir(gdat.pathcbvs)) == 0 and 
         if gdat.boolcbvs:
+            print('o')
+            print(o)
+            print('gdat.listtsec')
+            print(gdat.listtsec)
             path = gdat.pathcbvs + fnmatch.filter(os.listdir(gdat.pathcbvs), 'tess*-s%04d-%d-%d-*-s_cbv.fits' % (gdat.listtsec[o], \
-                                                                                                gdat.listtcam[o], gdat.listtccd[o]))[0]
+                                                                                                            gdat.listtcam[o], gdat.listtccd[o]))[0]
             print('path')
             print(path)
             listhdun = astropy.io.fits.open(path)
@@ -1474,10 +1514,8 @@ def init( \
 
         gdat.stdvfittflux = np.empty((gdat.numbtime[o], gdat.numbcomp))
         
-        #print('Evaluating the PSFs for contamination ratio...')
-        #numbstarneig = 10
-        #indxstarneig = np.arange(numbstarneig)
-        #
+        if gdat.boolcalcconr and not (gdat.ticitarg is not None):
+            raise Exception
 
         # fit for the PSF
         if gdat.typepsfn == 'ontf':
@@ -1619,6 +1657,9 @@ def init( \
             print(numbplotanim)
             print('gdat.indxtimeanim')
             summgene(gdat.indxtimeanim)
+            print('gdat.listtime[o]')
+            summgene(gdat.listtime[o])
+            print('')
             # get time string
             objttime = astropy.time.Time(gdat.listtime[o], format='jd', scale='utc', out_subfmt='date_hm')
             listtimelabl = objttime.iso
@@ -1833,6 +1874,13 @@ def init( \
                 gdat.cntpresi = gdat.cntpdata - gdat.cntpmodl
                 chi2 = np.mean(gdat.cntpresi**2 / gdat.cntpdata) + 2 * gdat.numbstar
                 
+                if gdat.boolcalcconr:
+                    print('Evaluating the PSFs for contamination ratio...')
+                    corr = np.sum(matrdesi * matrdesi[:, 0, None], 0)
+                    #corr /= np.amax()
+                    print('corr')
+                    print(corr)
+
         
                 # color scales
                 for typecntpscal in gdat.listtypecntpscal:
