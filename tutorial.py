@@ -1,6 +1,9 @@
-import lygos
 import os, sys
 import numpy as np
+
+import lygos
+import miletos
+from tdpy import summgene
 
 # first, make sure that the environment variable $TCAT_DATA_PATH is set to the folder, where you would like the output plots and data to appear
 
@@ -8,8 +11,8 @@ def cnfg_HATP19():
 
     strgmast = 'HAT-P-19'
     lygos.init( \
-                    strgmast=strgmast, \
-                   )
+               strgmast=strgmast, \
+              )
         
 
 def IRAS090263817():
@@ -22,31 +25,29 @@ def IRAS090263817():
         lygos.init(rasctarg=rasctarg, decltarg=decltarg, labltarg=labltarg, maxmnumbstar=k, boolplotrflx=True, boolplotcntp=True)
 
 
-def ASASNN19bt():
+def ASASNN():
     
     # a string that will be used to query the target on MAST, which should be resolvable on MAST
-    strgmast = 'ASASSN-19bt'
-    lygos.init(strgmast=strgmast, maxmnumbstar=1, boolplotrflx=True)
+    liststrgmast = [ \
+                    'ASASSN-19bt', \
+                    #'ASASNN-19fp', \
+                   ]
+    for strgmast in liststrgmast:
+        lygos.init( \
+                   strgmast=strgmast, \
+                   strgclus='ASASSN', \
+                   boolplotrflx=True, \
+                  )
 
 
 def cnfg_Ross619():
     # Ben Rackham
-
     lygos.init( \
                    strgmast='Ross 619', \
                    boolcbvs=False, \
                    #listtsecsele=[28, 29, 30], \
                    #typedatatess='lygos-best', \
                   )
-
-
-def ASASNN19fp():
-    
-    labltarg = 'ASASNN-19fp'
-    rasc = 81.6519 
-    decl = -13.135
-
-    lygos.init(rasctarg=rasc, decltarg=decl, labltarg=labltarg, maxmnumbstar=1, boolplotrflx=True)
 
 
 def tutorial():
@@ -72,6 +73,7 @@ def cnfg_WASP121():
                strgmast='WASP-121', \
                boolplotquat=True, \
                boolplot=True, \
+               boolcalcconr=True, \
                boolanim=True, \
                boolanimframtotl=False, \
               )
@@ -154,6 +156,33 @@ def cnfg_WD1856():
          #datatype='sapp', \
         )
 
+
+def cnfg_contamination():
+    
+    typedata = 'toyy'
+    #typedata = 'obsd'
+    
+    dictpopl = miletos.retr_dictcatltic8('ffimhcon')
+    if typedata == 'toyy':
+        print('temp -- assigning random TESS magnitudes!')
+        tmagtarg = np.random.rand() * 10 + 7
+        #tmagtarg = dictpopl['tmag']
+    else:
+        tmagtarg = None
+    
+    for k in range(2):
+        lygos.init( \
+             ticitarg=dictpopl['ID'].astype(int)[k], \
+             strgclus='contamination', \
+             typepsfn='ontf', \
+             tmagtarg=tmagtarg, \
+             boolfittoffs=True, \
+             boolplot=True, \
+             boolplotquat=True, \
+             boolanim=True, \
+             typedata=typedata, \
+            )
+        
 
 def cnfg_GJ299():
     
@@ -399,6 +428,24 @@ def cnfg_DJ():
                 )
             #break
             #k += 1
+
+
+
+def cnfg_TIC284856863():
+    '''
+    12 July 2021, young star with accretion disk from Max (TYC 2597-735-1)
+    '''
+
+    lygos.init( \
+               boolplotrflx=True, \
+               boolrepr=True, \
+               ticitarg=284856863, \
+               labltarg='TYC 2597-735-1', \
+              )
+
+
+
+
 
 
 globals().get(sys.argv[1])()
