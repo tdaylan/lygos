@@ -97,7 +97,9 @@ def plot_cntpwrap(gdat, cntp, o, typecntpscal, nameplotcntp, strgsave, \
 
 
 def plot_cntp(gdat, cntp, o, typecntpscal, nameplotcntp, strgsave, indxpcol=None, \
-                                            cbar='Greys_r', strgtitl='', boolresi=False, xposoffs=None, yposoffs=None, strgextn='', \
+                                            cbar='Greys_r', strgtitl='', boolresi=False, \
+                                            xposoffs=None, yposoffs=None, \
+                                            strgextn='', \
                                                                                            lcur=None, boolanno=True, indxtimeplot=None, \
                                                                                            time=None, timelabl=None, thistime=None, \
                                                                                            vmin=None, vmax=None, listindxpixlcolr=None):
@@ -123,22 +125,25 @@ def plot_cntp(gdat, cntp, o, typecntpscal, nameplotcntp, strgsave, indxpcol=None
     
     # plot the fitting point sources
     if boolanno:
-    
-        axis[0].scatter(gdat.catlrefrfilt[0]['xpos'], gdat.catlrefrfilt[0]['ypos'], alpha=1., s=gdat.sizeplotsour, color='r')
+        
+        # reference sources
+        axis[0].scatter(gdat.catlrefrfilt[0]['xpos'], gdat.catlrefrfilt[0]['ypos'], alpha=1., s=gdat.sizeplotsour, color='r', marker='o')
+        # label the reference sources
         for indxtemp in gdat.indxsourcatlrefr:
             axis[0].text(gdat.catlrefrfilt[0]['xpos'][indxtemp], gdat.catlrefrfilt[0]['ypos'][indxtemp], \
                                                                         '%s' % ('TIC %s' % gdat.catlrefrfilt[0]['tici'][indxtemp]), color='r')
         
+        # fitting sources
         xposfitt = np.copy(gdat.xposfitt)
         yposfitt = np.copy(gdat.yposfitt)
         if xposoffs is not None:
             # add the positional offset, if any
             xposfitt += xposoffs
             yposfitt += yposoffs
-        # target
-        axis[0].scatter(xposfitt[0], yposfitt[0], alpha=1., color='b', s=2*gdat.sizeplotsour, marker='x')
-        # neighbors
-        axis[0].scatter(xposfitt[1:], yposfitt[1:], alpha=1., s=gdat.sizeplotsour, color='b', marker='x')
+        ## target
+        axis[0].scatter(xposfitt[0], yposfitt[0], alpha=1., color='b', s=2*gdat.sizeplotsour, marker='o')
+        ## neighbors
+        axis[0].scatter(xposfitt[1:], yposfitt[1:], alpha=1., s=gdat.sizeplotsour, color='b', marker='o')
         for k in gdat.indxstar:
             axis[0].text(xposfitt[k] + 0.25, yposfitt[k] + 0.25, '%d' % k, color='b')
         axis[0].set_title(strgtitl) 
@@ -204,7 +209,8 @@ def plot_lcur(gdat, lcurmodl, stdvlcurmodl, k, indxtsecplot, strgsecc, booltpxf,
         path = retr_pathvisu(gdat, nameplot, strgsave, indxtzom=indxtzom)
         
         # skip the plot if it has been made before
-        if os.path.exists(path):
+        if not gdat.boolplotforc and os.path.exists(path):
+            print('Plot found at %s. Skipping the plotting...' % path)
             continue
 
         if a == 1 and k > 0:
@@ -227,8 +233,8 @@ def plot_lcur(gdat, lcurmodl, stdvlcurmodl, k, indxtsecplot, strgsecc, booltpxf,
             yerr = stdvlcurmodl
         else:
             yerr = None
-        temp, listcaps, temp = axis[0].errorbar(timedatatemp, lcurmodl, yerr=yerr, color='b', ls='', markersize=2, \
-                                                                                marker='.', lw=3, alpha=0.3, label='Lygos')
+        temp, listcaps, temp = axis[0].errorbar(timedatatemp, lcurmodl, yerr=yerr, color='k', ls='', markersize=3, \
+                                                                                marker='.', lw=3, alpha=0.5, label='Lygos')
         for caps in listcaps:
             caps.set_markeredgewidth(3)
         
@@ -445,8 +451,10 @@ def init( \
          ### number of time bins
          numbtime=None, \
          
-         # Boolean flag to reprocess the data
-         boolrepr=False, \
+         # Boolean flag to force regressing the data even if it was previously done
+         boolregrforc=True, \
+         # Boolean flag to force plotting the data even if it was previously done
+         boolplotforc=True, \
 
          # target
          ## a string to be used to search MAST for the target
@@ -901,8 +909,6 @@ def init( \
         gdat.listtcam = np.array(gdat.listtcam)
         gdat.listtccd = np.array(gdat.listtccd)
         
-        print('gdat.listtsec')
-        print(gdat.listtsec)
         gdat.numbtsec = gdat.listtsec.size
         gdat.indxtsec = np.arange(gdat.numbtsec)
         
@@ -976,7 +982,7 @@ def init( \
             strgsave = retr_strgsave(gdat, strgsecc, strgoffs, gdat.typecade[o])
             pathsaverflxtarg = gdat.pathdatatarg + 'rflxtarg' + strgsave + '.csv'
             gdat.dictoutp['pathsaverflxtargsc%02d' % gdat.listtsec[o]] = pathsaverflxtarg
-            if not boolrepr and os.path.exists(pathsaverflxtarg):
+            if not boolregrforc and os.path.exists(pathsaverflxtarg):
                 print('Run previously completed...')
                 gdat.listarry = [[] for o in gdat.indxtsec]
                 for o in gdat.indxtsec:
@@ -1039,8 +1045,6 @@ def init( \
     print('Including the nearby TIC sources to the reference catalog...')
     if gdat.typedata == 'toyy':
         gdat.catlrefr[0]['tmag'] = gdat.tmagneig
-        gdat.catlrefr[0]['rasc'] = gdat.rascneig
-        gdat.catlrefr[0]['decl'] = gdat.declneig
     else:
         gdat.catlrefr[0]['tmag'] = catalogData[:]['Tmag']
         gdat.catlrefr[0]['rasc'] = catalogData[:]['ra']
@@ -1175,11 +1179,6 @@ def init( \
     gdat.listarry = [[] for o in gdat.indxtsec]
     gdat.numbtime = np.empty(gdat.numbtsec, dtype=int)
     
-    print('gdat.indxtsec')
-    summgene(gdat.indxtsec)
-    print('gdat.listtsec')
-    summgene(gdat.listtsec)
-
     for o in gdat.indxtsec:
         strgsecc = retr_strgsecc(gdat, o)
         print('Sector: %d' % gdat.listtsec[o])
@@ -1685,7 +1684,7 @@ def init( \
                 xpostemp[0] = gdat.xposfitt[0] + gdat.listoffsxpos[x]
                 ypostemp[0] = gdat.yposfitt[0] + gdat.listoffsypos[y]
                 
-                if boolrepr or not os.path.exists(pathsaverflx):
+                if boolregrforc or not os.path.exists(pathsaverflx):
                     
                     timeinit = timemodu.time()
                     gdat.covafittflux = np.empty((gdat.numbtime[o], gdat.numbstar + 1, gdat.numbstar + 1))
@@ -1701,12 +1700,13 @@ def init( \
                     fluxtemp = np.ones((1, gdat.numbstar))
                     cntptemp = np.zeros(1)
                     for k in np.arange(gdat.numbstar):
-                        matrdesi[:, k] = retr_cntpmodl(gdat, xpostemp[k, None], ypostemp[k, None], fluxtemp[:, k, None], cntptemp, o, coef=coef).flatten()
+                        matrdesi[:, k] = retr_cntpmodl(gdat, xpostemp[k, None], ypostemp[k, None], \
+                                                                    fluxtemp[:, k, None], cntptemp, o, coef=coef).flatten()
                             
                     # solve the linear system
                     for t in gdat.indxtime[o]:
                         gdat.mlikfittflux[t, :], gdat.covafittflux[t, :, :] = retr_mlikregr(gdat.cntpdata[:, :, t], matrdesi, gdat.vari[:, :, t])
-
+                    
                     if not np.isfinite(gdat.covafittflux).all():
                         indxbaddpixl = (~np.isfinite(gdat.covafittflux)).any(0)
                         indxbaddtime = (~np.isfinite(gdat.covafittflux)).any(1).any(1)
@@ -1827,7 +1827,10 @@ def init( \
                     print('corr')
                     print(corr)
 
-        
+                
+                print('gdat.boolplotrflx')
+                print(gdat.boolplotrflx)
+
                 # color scales
                 for typecntpscal in gdat.listtypecntpscal:
                     for strg in ['modl', 'resi', 'datanbkg']:
@@ -1845,28 +1848,28 @@ def init( \
                         plot_lcur(gdat, gdat.cntpaper, 0.01 * gdat.cntpaper, k, o, '_' + strgsecc, gdat.booltpxf[o], '_aper', strgsave)
                         
                     if gdat.boolcbvs:
+                        print('gdat.mlikfittfluxraww')
+                        summgene(gdat.mlikfittfluxraww)
                         plot_lcur(gdat, gdat.mlikfittfluxraww, 0 * gdat.mlikfittfluxraww, 0, o, '_' + strgsecc, gdat.booltpxf[o], strgoffs, strgsave)
                         
                     # plot the light curve of the target stars and background
                     for k in gdat.indxcomp:
-
+                        
                         if x == 1 and y == 1 or k == 0:
 
                             if gdat.boolrefr[o] and x == 1 and y == 1:
                                 listmodeplot = [0, 1]
                             else:
                                 listmodeplot = [0]
+                            
                             plot_lcur(gdat, gdat.mlikfittrflx[:, k], gdat.stdvfittrflx[:, k], k, o, '_' + strgsecc, \
                                                                              gdat.booltpxf[o], strgoffs, strgsave, listmodeplot=listmodeplot)
                             
                             if gdat.listlimttimetzom is not None:
                                 for p in range(len(gdat.listlimttimetzom)):
-                                    plot_lcur(gdat, gdat.mlikfittrflx[:, k], gdat.stdvfittrflx[:, k], k, o, '_' + strgsecc, gdat.booltpxf[o], strgoffs, \
-                                                                                   strgsave, indxtimelimt=gdat.indxtimelimt[p], indxtzom=p)
-                                    if k == 0:
-                                        plot_lcur(gdat, gdat.mlikfittflux[:, k], gdat.stdvfittflux[:, k], k, o, '_' + strgsecc, \
-                                                                                                gdat.booltpxf[o], strgoffs, strgsave, \
-                                                                                          indxtimelimt=gdat.indxtimelimt[p], indxtzom=p)
+                                    plot_lcur(gdat, gdat.mlikfittflux[:, k], gdat.stdvfittflux[:, k], k, o, '_' + strgsecc, \
+                                                                                          gdat.booltpxf[o], strgoffs, \
+                                                                                          strgsave, indxtimelimt=gdat.indxtimelimt[p], indxtzom=p)
                             
                     else:
                         gdat.mlikrflxbdtr = gdat.mlikfittrflx[:, 0]

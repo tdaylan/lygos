@@ -438,11 +438,39 @@ def cnfg_TIC284856863():
 
     lygos.init( \
                boolplotrflx=True, \
-               boolrepr=True, \
+               boolplotcntp=True, \
+               boolplotquat=True, \
+               boolregrforc=True, \
+               boolplotforc=True, \
+               maxmnumbstar=999, \
+               maxmdmag=6, \
                ticitarg=284856863, \
                labltarg='TYC 2597-735-1', \
               )
 
+
+def cnfg_ASASSN20qc():
+    '''
+    13 July 2021, AGN from DJ
+    '''
+    rasctarg = 63.260208 
+    decltarg = -53.0727
+
+    labltarg = 'ASASSN-20qc'
+
+    lygos.init( \
+               boolplotrflx=True, \
+               boolplotcntp=True, \
+               boolfittoffs=True, \
+
+               labltarg=labltarg, \
+               
+               rasctarg=rasctarg, \
+               decltarg=decltarg, \
+               
+               boolregrforc=True, \
+               boolplotforc=True, \
+              )
 
 
 
