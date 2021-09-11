@@ -218,11 +218,27 @@ def cnfg_saul():
     path = os.environ['TCAT_DATA_PATH'] + '/data/list_saul.txt'
     strgclus = 'saul'
 
-    init_list( \
-              path, \
-              strgclus, \
-             )
+    pathbase = os.environ['LYGOS_DATA_PATH'] + '/%s/' % strgbase
+    os.system('mkdir -p %s' % pathbase)
 
+    listticitarg = []
+    listlabl = []
+    listrasc = []
+    listdecl = []
+    for line in open(pathfile):
+        listline = line.split('  ')
+        labltarg = listline[0]
+        strgtarg = labltarg
+        rasctarg = float(listline[1])
+        decltarg = float(listline[2])
+        intgresu = init( \
+                        strgtarg=strgtarg, \
+                        rasctarg=rasctarg, \
+                        decltarg=decltarg, \
+                        labltarg=labltarg, \
+                        strgbase=strgbase, \
+                        **kwag \
+                       )
 
 
 def cnfg_KeplerEBs():
