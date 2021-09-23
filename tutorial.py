@@ -72,7 +72,6 @@ def cnfg_WASP121():
     lygos.init( \
                strgmast='WASP-121', \
                boolplotquat=True, \
-               boolplot=True, \
                boolcalcconr=True, \
                boolanim=True, \
                boolanimframtotl=False, \
@@ -85,7 +84,6 @@ def cnfg_TOI1233():
          toiitarg=1233, \
          numbside=21, \
          boolplotquat=True, \
-         boolplot=True, \
          boolplotrflx=True, \
          boolanim=True, \
          boolanimframtotl=False, \
@@ -158,30 +156,68 @@ def cnfg_WD1856():
 
 
 def cnfg_contamination():
+    '''
+    typdata:
+        'toyy': simulated images based on imaginary temporal footprint as well as imaginary RA, DEC, and Tmag for all sources
+        'mock': simulated images based on real temporal footprint as well as real RA, DEC, Tmag for all sources
+        'obsd': real images and real RA, DEC, and Tmag for all sources
+    '''
+    listtypedata = ['toyy', 'mock', 'obsd']
     
-    typedata = 'toyy'
-    #typedata = 'obsd'
-    
+    # get the features of highly-contaminated sources in the TIC
     dictpopl = miletos.retr_dictcatltic8('ffimhcon')
-    if typedata == 'toyy':
-        print('temp -- assigning random TESS magnitudes!')
-        tmagtarg = np.random.rand() * 10 + 7
-        #tmagtarg = dictpopl['tmag']
-    else:
-        tmagtarg = None
     
-    for k in range(2):
-        lygos.init( \
-             ticitarg=dictpopl['ID'].astype(int)[k], \
-             strgclus='contamination', \
-             typepsfn='ontf', \
-             tmagtarg=tmagtarg, \
-             boolfittoffs=True, \
-             boolplot=True, \
-             boolplotquat=True, \
-             boolanim=True, \
-             typedata=typedata, \
-            )
+    numbsour = 10
+    indxsour = np.arange(numbsour)
+
+    for typedata in listtypedata:
+        
+        for k in indxsour:
+            if typedata == 'toyy':
+                ticitarg = None
+                labltarg = 'Mock Target %d' % k
+                xpostarg = 5. + np.random.rand()
+                ypostarg = 5. + np.random.rand()
+                tmagtarg = 10.
+                
+                numbneig = 10
+                xposneig = np.random.rand(numbneig) * 11
+                yposneig = np.random.rand(numbneig) * 11
+                tmagneig = np.random.rand(numbneig) * 4 + 10
+                
+            else:
+                tmagtarg = None
+                ticitarg = dictpopl['tici'][k], \
+                xpostarg = None
+                ypostarg = None
+                xposneig = None
+                yposneig = None
+                labltarg = None
+
+            lygos.init( \
+                       strgclus='contamination', \
+                       typepsfn='ontf', \
+                                        
+                       boolplotrflx=True, \
+                       boolplotcntp=True, \
+                       boolplotquat=True, \
+                       
+                       ticitarg=ticitarg, \
+                       labltarg=labltarg, \
+                       xpostarg=xpostarg, \
+                       ypostarg=ypostarg, \
+                       tmagtarg=tmagtarg, \
+                       
+                       boolmile=True, \
+
+                       xposneig=xposneig, \
+                       yposneig=yposneig, \
+                       tmagneig=tmagneig, \
+
+                       boolfittoffs=True, \
+                       #boolanim=True, \
+                       typedata=typedata, \
+                      )
         
 
 def cnfg_GJ299():
@@ -191,7 +227,6 @@ def cnfg_GJ299():
          labltarg='GJ 299', \
          #typepsfn='ontf', \
          boolplotquat=True, \
-         boolplot=True, \
          boolanim=True, \
          ticitarg=334415465, \
          epocpmot=2019.3, \
@@ -473,20 +508,67 @@ def cnfg_ASASSN20qc():
     decltarg = -53.0727
 
     labltarg = 'ASASSN-20qc'
+    
+    refrlistlabltser = [['Michael']]
+    path = os.environ['LYGOS_DATA_PATH'] + '/data/lc_2020adgm_cleaned_ASASSN20qc'
+    print(path)
+    objtfile = open(path, 'r')
+    k = 0
+    linevalu = []
+    for line in objtfile:
+        if k == 0:
+            k += 1
+            continue
+        linesplt = line.split(' ')
+        linevalu.append([])
+        for linesplttemp in linesplt:
+            if linesplttemp != '':
+                linevalu[k-1].append(float(linesplttemp))
+        linevalu[k-1] = np.array(linevalu[k-1])
+        k += 1
+    linevalu = np.vstack(linevalu)
+    refrarrytser = np.empty((linevalu.shape[0], 3))
+    refrarrytser[:, 0] = linevalu[:, 0]
+    refrarrytser[:, 1] = linevalu[:, 2]
+    refrarrytser[:, 2] = linevalu[:, 3]
+   
+    dictmileinpt = dict()
+    dictmileinpt['listtypeobjt'] = ['supn']
+    
+    listnumbside = [7, 11, 15]
+    #dictmileinpt['listlimttimemask'] = [[[[-np.inf, 2457000 + 2175], [2457000 + 2186.5, 2457000 + 2187.5]]]]
+    dictmileinpt['listlimttimemask'] = [[[[2457000 + 2186.5, 2457000 + 2187.5]]]]
+    for numbside in listnumbside:
+        if numbside == 11:
+            dictmileinpt['listtimescalbdtrspln'] = [0., 0.1, 0.5]
+            boolfittoffs = True
+        else:
+            dictmileinpt['listtimescalbdtrspln'] = [0.]
+            boolfittoffs = False
 
-    lygos.init( \
-               boolplotrflx=True, \
-               boolplotcntp=True, \
-               boolfittoffs=True, \
+        lygos.init( \
+                   boolplotrflx=True, \
+                   boolplotcntp=True, \
+                   boolfittoffs=boolfittoffs, \
+                
+                   refrlistlabltser=refrlistlabltser, \
+                   refrarrytser=refrarrytser, \
 
-               labltarg=labltarg, \
-               
-               rasctarg=rasctarg, \
-               decltarg=decltarg, \
-               
-               boolregrforc=True, \
-               boolplotforc=True, \
-              )
+                   labltarg=labltarg, \
+                   
+                   listtsecsele=[32], \
+                   dictmileinpt=dictmileinpt, \
+                   
+                   timeoffs=2459000, \
+
+                   numbside=numbside, \
+
+                   rasctarg=rasctarg, \
+                   decltarg=decltarg, \
+                   
+                   boolregrforc=True, \
+                   boolplotforc=True, \
+                  )
 
 
 
