@@ -20,10 +20,9 @@ import astroquery
 
 import astropy
 
-import tdpy.mcmc
 from tdpy.util import summgene
-import tdpy.util
-import ephesus.util
+import tdpy
+import ephesus
 import miletos
 
 
@@ -487,12 +486,12 @@ def retr_mlikregr(cntpdata, matrdesi, vari):
     return mlikfittcnts, covafittcnts
 
 
-def retr_strgsave(gdat, strgsecc, x, y):
+def retr_strgsave(gdat, strgsecc, x, y, o):
     
     strgnumbside = '_n%03d' % gdat.numbside
     strgmaxmdmag = '_d%3.1f' % gdat.maxmdmag
     strgoffs = '_of%d%d' % (x, y)
-    strgsave = '_%s_%s%s%s%s' % (gdat.strgcnfg, strgsecc, strgnumbside, strgmaxmdmag, strgoffs)
+    strgsave = '_%s_%s_%s%s%s%s' % (gdat.strgcnfg, strgsecc, gdat.typecade[o], strgnumbside, strgmaxmdmag, strgoffs)
 
     return strgsave
 
@@ -566,7 +565,7 @@ def init( \
         
          ## mask
          ### Boolean flag to put a cut on quality flag
-         boolcuttqual=True, \
+         boolmaskqual=True, \
          ## limits of time between which the quality mask will be ignored
          limttimeignoqual=None, \
 
@@ -643,7 +642,7 @@ def init( \
          lablcatlextr=None, \
             
          # Boolean flag to run miletos at the end on the light curve
-         boolmile=True, \
+         boolmile=False, \
         
          # input dictionary to miletos
          dictmileinpt=None, \
@@ -686,7 +685,7 @@ def init( \
          # Boolean flag to turn on regression C library
          boolclib=False, \
          
-         **args, \
+         #**kargs, \
         ):
    
     # start the timer
@@ -701,8 +700,8 @@ def init( \
             setattr(gdat, attr, valu)
 
     # copy named arguments to the global object
-    for strg, valu in args.items():
-        setattr(gdat, strg, valu)
+    #for strg, valu in args.items():
+    #    setattr(gdat, strg, valu)
 
     # string for date and time
     gdat.strgtimestmp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -720,15 +719,20 @@ def init( \
     # check input
     ## ensure target identifiers are not conflicting
     if gdat.typedata == 'mock' or gdat.typedata == 'obsd':
-        if gdat.ticitarg is None and gdat.strgmast is None and gdat.toiitarg is None and (gdat.rasctarg is None or gdat.decltarg is None):
-            raise Exception('Either a TIC ID (ticitarg), RA&DEC (rasctarg and decltarg), MAST key (strgmast) or a TOI number (toiitarg) should be provided.')
-        if gdat.ticitarg is not None and (gdat.strgmast is not None or gdat.toiitarg is not None or gdat.rasctarg is not None or gdat.decltarg is not None):
-            raise Exception('Either a TIC ID (ticitarg), RA&DEC (rasctarg and decltarg), MAST key (strgmast) or a TOI number (toiitarg) should be provided.')
-        if gdat.strgmast is not None and (gdat.ticitarg is not None or gdat.toiitarg is not None or gdat.rasctarg is not None or gdat.decltarg is not None):
-            raise Exception('Either a TIC ID (ticitarg), RA&DEC (rasctarg and decltarg), MAST key (strgmast) or a TOI number (toiitarg) should be provided.')
-        if gdat.toiitarg is not None and (gdat.strgmast is not None or gdat.ticitarg is not None or gdat.rasctarg is not None or gdat.decltarg is not None):
-            raise Exception('Either a TIC ID (ticitarg), RA&DEC (rasctarg and decltarg), MAST key (strgmast) or a TOI number (toiitarg) should be provided.')
-        if gdat.strgmast is not None and (gdat.ticitarg is not None or gdat.toiitarg is not None or gdat.rasctarg is not None or gdat.decltarg is not None):
+        if not (gdat.ticitarg is not None and gdat.strgmast is None and gdat.toiitarg is None and gdat.rasctarg is None and gdat.decltarg is None or \
+                gdat.ticitarg is None and gdat.strgmast is not None and gdat.toiitarg is None and gdat.rasctarg is None and gdat.decltarg is None or \
+                gdat.ticitarg is None and gdat.strgmast is None and gdat.toiitarg is not None and gdat.rasctarg is None and gdat.decltarg is None or \
+                gdat.ticitarg is None and gdat.strgmast is None and gdat.toiitarg is None and gdat.rasctarg is not None and gdat.decltarg is not None):
+            print('gdat.ticitarg')
+            print(gdat.ticitarg)
+            print('gdat.strgmast')
+            print(gdat.strgmast)
+            print('gdat.toiitarg')
+            print(gdat.toiitarg)
+            print('gdat.rasctarg')
+            print(gdat.rasctarg)
+            print('gdat.decltarg')
+            print(gdat.decltarg)
             raise Exception('Either a TIC ID (ticitarg), RA&DEC (rasctarg and decltarg), MAST key (strgmast) or a TOI number (toiitarg) should be provided.')
     
     if gdat.typedata == 'toyy' and gdat.tmagtarg is None or gdat.typedata != 'toyy' and gdat.tmagtarg is not None:
@@ -743,7 +747,7 @@ def init( \
     objtexof = pd.read_csv(gdat.pathtoii, skiprows=0)
 
     # conversion factors
-    gdat.dictfact = ephesus.util.retr_factconv()
+    gdat.dictfact = ephesus.retr_factconv()
     
     print('gdat.numbside')
     print(gdat.numbside)
@@ -932,10 +936,10 @@ def init( \
         gdat.listtccdspoc = []
         if booltpxflygo:
             
-            # get the list of sectors for which TESS SPOC TPFs are available
-            print('Retrieving the list of available TESS sectors for which there is SPOC TPF data...')
+            # get the list of sectors for which TPF data are available
+            print('Retrieving the list of available TESS sectors for which there are TPF data...')
             # get observation tables
-            listtablobsv = ephesus.util.retr_listtablobsv(gdat.strgmast)
+            listtablobsv = ephesus.retr_listtablobsv(gdat.strgmast)
             listprodspoc = []
             for k, tablobsv in enumerate(listtablobsv):
                 
@@ -944,8 +948,6 @@ def init( \
                 if listtablobsv['distance'][k] > 0:
                     continue
 
-                strgdesc = 'Light curves'
-                strgdesc = 'Target pixel files'
                 strgdesc = ['Target pixel files', 'Light curves']
                 listprodspoctemp = astroquery.mast.Observations.filter_products(listprodspoctemp, description=strgdesc)
                 for a in range(len(listprodspoctemp)):
@@ -1000,7 +1002,7 @@ def init( \
             ## read SPOC TPFs
             for o in gdat.indxtsecspoc:
                 listhdundataspoc[o], gdat.listtsecspoc[o], gdat.listtcamspoc[o], \
-                                                                gdat.listtccdspoc[o] = ephesus.util.read_tesskplr_file(listpathdownspoctpxf[o])
+                                                                gdat.listtccdspoc[o] = ephesus.read_tesskplr_file(listpathdownspoctpxf[o])
 
             print('gdat.listtsecspoc')
             print(gdat.listtsecspoc)
@@ -1042,7 +1044,7 @@ def init( \
     gdat.typecade = np.zeros(gdat.numbtsec, dtype=object)
     if gdat.typedata != 'toyy':
         # determine whether sectors have TPFs
-        gdat.booltpxf = ephesus.util.retr_booltpxf(gdat.listtsec, gdat.listtsecspoc)
+        gdat.booltpxf = ephesus.retr_booltpxf(gdat.listtsec, gdat.listtsecspoc)
         print('gdat.booltpxf')
         print(gdat.booltpxf)
 
@@ -1097,7 +1099,7 @@ def init( \
         for o in gdat.indxtsec:
 
             strgsecc = retr_strgsecc(gdat, o)
-            strgsave = retr_strgsave(gdat, strgsecc, 1, 1)
+            strgsave = retr_strgsave(gdat, strgsecc, 1, 1, o)
             pathsaverflxtarg = gdat.pathdatatarg + 'rflxtarg' + strgsave + '.csv'
             gdat.dictoutp['pathsaverflxtargsc%02d' % gdat.listtsec[o]] = pathsaverflxtarg
             if os.path.exists(pathsaverflxtarg):
@@ -1360,7 +1362,7 @@ def init( \
             for o in gdat.indxtsec:
                 # get reference light curve
                 if gdat.booltpxf[o]:
-                    arry, indxtimequalgood, indxtimenanngood, tsecrefr, tcam, tccd = ephesus.util.read_tesskplr_file(listpathdownspoclcur[cntr], strgtype='PDCSAP_FLUX')
+                    arry, indxtimequalgood, indxtimenanngood, tsecrefr, tcam, tccd = ephesus.read_tesskplr_file(listpathdownspoclcur[cntr], strgtype='PDCSAP_FLUX')
                     gdat.refrtime[o][0] = arry[:, 0]
                     gdat.refrrflx[o][0] = arry[:, 1]
                     gdat.stdvrefrrflx[o][0] = arry[:, 2]
@@ -1414,12 +1416,14 @@ def init( \
                 gdat.numbside = gdat.cntpdata.shape[1]
             
             booldatagood = np.isfinite(gdat.listtime[o])
-            if gdat.boolcuttqual:
+            if gdat.boolmaskqual:
                 print('Masking bad data with quality flags...')
                 booldatagood = booldatagood & (gdat.listhdundata[o][1].data['QUALITY'] == 0)
             if limttimeignoqual is not None:
                 print('Ignoring the quality mask between %g and %g...' % (limttimeignoqual[0], limttimeignoqual[1]))
-                booldatagood = booldatagood | ((limttimeignoqual[0] < gdat.listtime[o]) & (gdat.listtime[o] < limttimeignoqual[1]))
+                booldatagood = booldatagood & ((limttimeignoqual[0] < gdat.listtime[o]) & (gdat.listtime[o] < limttimeignoqual[1]))
+            print('Ignoring data with 0 counts...')
+            booldatagood = booldatagood & (np.amax(np.amax(gdat.cntpdata, 0), 0) > 0.)
             indxtimedatagood = np.where(booldatagood)[0]
             fracgood = 100. * float(indxtimedatagood.size) / gdat.listtime[o].size
             print('Fraction of unmasked times: %.4g percent' % fracgood)
@@ -1709,7 +1713,7 @@ def init( \
         if gdat.boolcalcconr and not (gdat.ticitarg is not None):
             raise Exception
 
-        strgsave = retr_strgsave(gdat, strgsecc, 1, 1)
+        strgsave = retr_strgsave(gdat, strgsecc, 1, 1, o)
         
         if gdat.typepsfninfe != 'fixd':
             # fit for the PSF
@@ -1763,7 +1767,7 @@ def init( \
             strgextn = 'psfn'
             numbdata = gdat.numbpixl
             strgsaveextnmcmc = gdat.pathdatatarg + gdat.typepsfnshap + '_' + gdat.strgcnfg + '.txt'
-            listparapost, _ = tdpy.mcmc.samp(gdat, gdat.pathimagtargpsfn, numbsampwalk, numbsampburnwalk, numbsampburnwalkseco, retr_llik, \
+            listparapost, _ = tdpy.samp(gdat, gdat.pathimagtargpsfn, numbsampwalk, numbsampburnwalk, numbsampburnwalkseco, retr_llik, \
                                             listlablpara, listscalpara, listminmpara, listmaxmpara, listmeangauspara, liststdvgauspara, \
                                                 numbdata, strgextn=strgextn, typefileplot=typefileplot, strgsaveextn=strgsaveextnmcmc)
             
@@ -1836,7 +1840,7 @@ def init( \
                 if not gdat.boolfittoffs and (x != 1 or y != 1):
                     continue
 
-                strgsave = retr_strgsave(gdat, strgsecc, x, y)
+                strgsave = retr_strgsave(gdat, strgsecc, x, y, o)
                 pathsaverflxinit = gdat.pathdatatarg + 'rflxinit' + strgsave + '.csv'
                 pathsaverflx = gdat.pathdatatarg + 'rflx' + strgsave + '.csv'
                 pathsaverflxtarg = gdat.pathdatatarg + 'rflxtarg' + strgsave + '.csv'
@@ -1904,7 +1908,7 @@ def init( \
                             summgene(gdat.covafittcnts[:, k, k])
                             print('np.isfinite(gdat.stdvfittcnts[:, k])')
                             summgene(np.isfinite(gdat.stdvfittcnts[:, k]))
-                            raise Exception('')
+                            #raise Exception('')
                     
                     gdat.varifittcnts = gdat.stdvfittcnts**2
         
@@ -2043,7 +2047,7 @@ def init( \
         if gdat.boolanim:
             listtypeplotcntp += ['anim']
         
-        strgsave = retr_strgsave(gdat, strgsecc, 1, 1)
+        strgsave = retr_strgsave(gdat, strgsecc, 1, 1, o)
                 
         for typeplotcntp in listtypeplotcntp:
             for nameplotcntp in listnameplotcntp:
