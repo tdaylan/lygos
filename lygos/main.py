@@ -439,7 +439,7 @@ def retr_cntpmodl(gdat, xpos, ypos, cnts, cntpbackscal, parapsfn):
         tmpt = np.dot(matrdesi, gdat.coefspix).reshape((-1, gdat.numbside, gdat.numbside))
         cntpmodl = np.sum(tmpt[:, :, :, None] * cnts[:, None, None, :], 0)
         
-        if gdat.diagmode:
+        if gdat.booldiag:
             if not np.isfinite(cntpmodl).all():
                 print('WARNING: cntpmodl was infinite!!!!')
                 raise Exception('')
@@ -604,9 +604,6 @@ def init( \
          # plot extensions
          typefileplot='pdf', \
         
-         # diagnostics
-         booldiagmode=True, \
-        
          # Boolean flag to calculate the contamination ratio
          boolcalcconr = False, \
 
@@ -680,7 +677,7 @@ def init( \
          typeverb=1, \
         
          # Boolean flag to turn on diagnostic mode
-         diagmode=True, \
+         booldiag=True, \
         
          # Boolean flag to turn on regression C library
          boolclib=False, \
@@ -742,16 +739,13 @@ def init( \
         print(gdat.tmagtarg)
         raise Exception('tmagtarg needs to be set when toy data are generated.')
 
-    gdat.pathtoii = gdat.pathbase + 'data/exofop_tess_tois.csv'
+    gdat.pathtoii = os.environ['EPHESUS_DATA_PATH'] + '/data/exofop_tess_tois.csv'
     print('Reading from %s...' % gdat.pathtoii)
     objtexof = pd.read_csv(gdat.pathtoii, skiprows=0)
 
     # conversion factors
     gdat.dictfact = ephesus.retr_factconv()
     
-    print('gdat.numbside')
-    print(gdat.numbside)
-
     # determine target identifiers
     if gdat.ticitarg is not None:
         gdat.strgtargtype = 'tici'
@@ -922,8 +916,19 @@ def init( \
             gdat.listtcamffim.append(hdundata[0].header['CAMERA'])
             gdat.listtccdffim.append(hdundata[0].header['CCD'])
             gdat.listhdundataffim.append(hdundata)
-        gdat.listtsecffim = np.array(gdat.listtsecffim)
         
+        gdat.listtsecffim = np.array(gdat.listtsecffim)
+        gdat.listtcamffim = np.array(gdat.listtcamffim)
+        gdat.listtccdffim = np.array(gdat.listtccdffim)
+        gdat.listhdundataffim = np.array(gdat.listhdundataffim)
+        
+        indxsort = np.argsort(gdat.listtsecffim)
+        
+        gdat.listtsecffim = gdat.listtsecffim[indxsort]
+        gdat.listtcamffim = gdat.listtcamffim[indxsort]
+        gdat.listtccdffim = gdat.listtccdffim[indxsort]
+        gdat.listhdundataffim = gdat.listhdundataffim[indxsort]
+
         print('gdat.listtsecffim')
         print(gdat.listtsecffim)
         print('gdat.listtcamffim')
@@ -1196,7 +1201,7 @@ def init( \
                 p = gdat.cntppsfnusam[a*gdat.factusam:(a+1)*gdat.factusam, j*gdat.factusam:(j+1)*gdat.factusam].flatten()
                 gdat.coefspix[:, a, j] = np.dot(np.linalg.inv(np.dot(A.T, A)), np.dot(A.T, p)) 
         
-        if gdat.diagmode:
+        if gdat.booldiag:
             if np.amax(gdat.coefspix) == 0.:
                 raise Exception('')
 
@@ -1423,13 +1428,13 @@ def init( \
                 print('Ignoring the quality mask between %g and %g...' % (limttimeignoqual[0], limttimeignoqual[1]))
                 booldatagood = booldatagood & ((limttimeignoqual[0] < gdat.listtime[o]) & (gdat.listtime[o] < limttimeignoqual[1]))
             print('Ignoring data with 0 counts...')
-            booldatagood = booldatagood & (np.amax(np.amax(gdat.cntpdata, 0), 0) > 0.)
+            booldatagood = booldatagood & (gdat.cntpdata != 0.).all()
             indxtimedatagood = np.where(booldatagood)[0]
             fracgood = 100. * float(indxtimedatagood.size) / gdat.listtime[o].size
             print('Fraction of unmasked times: %.4g percent' % fracgood)
             if indxtimedatagood.size == 0:
-                print('No good data found.')
-                return gdat.dictoutp
+                print('No good data found for this sector. The returned list will have an empty element.')
+                continue
     
             # keep good times and discard others
             gdat.listtime[o] = gdat.listtime[o][indxtimedatagood]
@@ -1578,13 +1583,6 @@ def init( \
                 gdat.refr.catl[q][o][strgfeat] = gdat.refr.catl[q][o][strgfeat][indxsourwthn]
             
             gdat.refr.catl[q][o]['cnts'] = retr_fluxfromtmag(gdat.refr.catl[q][o]['tmag']) * gdat.timeexpo
-            
-            print('gdat.refr.catl[q][o][xpos]')
-            print(gdat.refr.catl[q][o]['xpos'])
-            print('gdat.refr.catl[q][o][ypos]')
-            print(gdat.refr.catl[q][o]['ypos'])
-            print('gdat.refr.catl[q][o][tmag]')
-            print(gdat.refr.catl[q][o]['tmag'])
             
         for q in gdat.refr.indxcatl:
             for k in gdat.refr.indxsour[q][o]:
@@ -1824,7 +1822,11 @@ def init( \
             gdat.indxtimeanim = np.linspace(0., gdat.numbtime[o] - 1., numbplotanim).astype(int)
             # get time string
             if gdat.typedata != 'toyy':
-                objttime = astropy.time.Time(gdat.listtime[o], format='jd', scale='utc', out_subfmt='date_hm')
+                print('gdat.listtime[o]')
+                summgene(gdat.listtime[o])
+                print(gdat.listtime[o].dtype)
+                print(type(gdat.listtime[o][0]))
+                objttime = astropy.time.Time(gdat.listtime[o], format='jd', scale='utc')#, out_subfmt='date_hm')
                 listtimelabl = objttime.iso
             else:
                 listtimelabl = gdat.listtime[o].astype(str)
@@ -1867,34 +1869,42 @@ def init( \
                 xpostemp[0] = gdat.fitt.catl['xpos'][0] + gdat.listoffsxpos[x]
                 ypostemp[0] = gdat.fitt.catl['ypos'][0] + gdat.listoffsypos[y]
                 
-                if not os.path.exists(pathsaverflx):
+                if not os.path.exists(pathsaverflx) or gdat.boolcalcconr:
                     
-                    timeinit = timemodu.time()
-                    gdat.covafittcnts = np.empty((gdat.numbtime[o], gdat.fitt.numbsour + 1, gdat.fitt.numbsour + 1))
-                    gdat.mlikfittcntsinit = np.empty((gdat.numbtime[o], gdat.fitt.numbsour + 1))
                     matrdesi = np.ones((gdat.numbpixl, gdat.fitt.numbsour + 1))
-                    
-                    print('Solving for the best-fit raw light curves of the sources...')
                     cntstemp = np.ones((1, gdat.fitt.numbsour))
                     cntptemp = np.zeros(1)
                     for k in np.arange(gdat.fitt.numbsour):
                         matrdesi[:, k] = retr_cntpmodl(gdat, xpostemp[k, None], ypostemp[k, None], cntstemp[:, k, None], cntptemp, gdat.para).flatten()
+                    
+                if not os.path.exists(pathsaverflx):
+                    
+                    timeinit = timemodu.time()
+                    
+                    gdat.covafittcnts = np.empty((gdat.numbtime[o], gdat.fitt.numbsour + 1, gdat.fitt.numbsour + 1))
+                    gdat.mlikfittcntsinit = np.empty((gdat.numbtime[o], gdat.fitt.numbsour + 1))
                             
+                    print('Solving for the best-fit raw light curves of the sources...')
                     # solve the linear system
                     for t in gdat.indxtime[o]:
                         gdat.mlikfittcntsinit[t, :], gdat.covafittcnts[t, :, :] = retr_mlikregr(gdat.cntpdata[:, :, t], matrdesi, gdat.vari[:, :, t])
-                    if not np.isfinite(gdat.covafittcnts).all():
-                        indxbaddpixl = (~np.isfinite(gdat.covafittcnts)).any(0)
-                        indxbaddtime = (~np.isfinite(gdat.covafittcnts)).any(1).any(1)
-                        print('indxbaddtime')
-                        summgene(indxbaddtime)
-                        print('gdat.vari')
-                        summgene(gdat.vari)
-                        print('gdat.cntpdata')
-                        summgene(gdat.cntpdata)
-                        print('matrdesi')
-                        summgene(matrdesi)
-                        raise Exception('')
+                    
+                    #if not np.isfinite(gdat.mlikfittcntsinit).all():
+                    ##if not np.isfinite(gdat.covafittcnts).all():
+                    #    indxbaddpixl = (~np.isfinite(gdat.covafittcnts)).any(0)
+                    #    indxbaddtime = (~np.isfinite(gdat.covafittcnts)).any(1).any(1)
+                    #    
+                    #    #gdat.covafittcnts[np.where(~np.isfinite(gdat.covafittcnts))] = 0.
+                    #    
+                    #    print('indxbaddtime')
+                    #    summgene(indxbaddtime)
+                    #    print('gdat.vari')
+                    #    summgene(gdat.vari)
+                    #    print('gdat.cntpdata')
+                    #    summgene(gdat.cntpdata)
+                    #    print('matrdesi')
+                    #    summgene(matrdesi)
+                    #    raise Exception('')
 
                     for k in gdat.indxcomp:
                         gdat.stdvfittcnts[:, k] = np.sqrt(gdat.covafittcnts[:, k, k])
@@ -1935,7 +1945,7 @@ def init( \
                     gdat.fitt.arryrflx[o][:, :, 1, x, y] = gdat.mlikfittcnts / gdat.medifittcnts[None, :]
                     gdat.fitt.arryrflx[o][:, :, 2, x, y] = gdat.stdvfittcnts / gdat.medifittcnts[None, :]
                     
-                    if gdat.booldiagmode:
+                    if gdat.booldiag:
                         for a in range(gdat.listtime[o].size):
                             if a != gdat.listtime[o].size - 1 and gdat.listtime[o][a] >= gdat.listtime[o][a+1]:
                                 raise Exception('')
@@ -1957,7 +1967,7 @@ def init( \
                     np.savetxt(pathsaverflxtarg, arry[:, :3], delimiter=',', header=gdat.strghead)
                     gdat.listarry[o] = arry[:, :3]
 
-                    if gdat.booldiagmode:
+                    if gdat.booldiag:
                         for a in range(gdat.listarry[o][:, 0].size):
                             if a != gdat.listarry[o][:, 0].size - 1 and gdat.listarry[o][a, 0] >= gdat.listarry[o][a+1, 0]:
                                 raise Exception('')
@@ -1984,6 +1994,9 @@ def init( \
                         gdat.fitt.arryrflx[o][:, k, 2, x, y] = arry[:, 2*k+2]
                     gdat.mlikfittcnts = gdat.medifittcnts[None, :] * gdat.fitt.arryrflx[o][:, :, 1, x, y]
                     gdat.listarry[o] = arry[:, :3]
+
+                    if gdat.booldiag and len(gdat.listarry[o]) == 0:
+                        raise Exception('')
                 
                 print('Evaluating the model at all time bins...')
                 cntpbackneww = gdat.mlikfittcnts[:, -1]
@@ -2097,6 +2110,10 @@ def init( \
                         for path in listpath:
                             os.system('rm %s' % path)
      
+        print('')
+        if gdat.booldiag and len(gdat.listarry[o]) == 0:
+            raise Exception('')
+                
     if gdat.boolmile:
         # call miletos to analyze and/or model the light curve
         listarrytser = dict()
@@ -2125,11 +2142,11 @@ def init( \
                 dictmileoutp = miletos.init(**dictmileinpt)
                         
     timefinltotl = timemodu.time()
-    print('Total execution time: %g seconds.' % (timefinltotl - timeinittotl))
+    print('lygos ran in %g seconds.' % (timefinltotl - timeinittotl))
     print('')                
     gdat.dictoutp['strgtarg'] = gdat.strgtarg
     gdat.dictoutp['listarry'] = gdat.listarry
-    
+
     return gdat.dictoutp
 
 

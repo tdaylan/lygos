@@ -40,16 +40,6 @@ def ASASNN():
                   )
 
 
-def cnfg_Ross619():
-    # Ben Rackham
-    lygos.init( \
-                   strgmast='Ross 619', \
-                   boolcbvs=False, \
-                   #listtsecsele=[28, 29, 30], \
-                   #typedatatess='lygos-best', \
-                  )
-
-
 def tutorial():
     
     lygos.init(strgmast='WASP-121')
@@ -372,11 +362,9 @@ def cnfg_GRB191016A():
          boolcuttqual=boolcuttqual, \
          boolfittoffs=boolfittoffs, \
          numbside=9, \
-         boolbdtr=False, \
          listtimeplotline=listtimeplotline, \
          listlimttimeplot=listlimttimeplot, \
         )
-
 
 
 def cnfg_lindsey():
@@ -384,16 +372,15 @@ def cnfg_lindsey():
     from astropy import units as u
     from astropy.coordinates import SkyCoord
 
-    pathbase = os.environ['LYGOS_DATA_PATH'] + '/'
+    pathbase = os.environ['PERGAMON_DATA_PATH'] + '/featsupntess/'
     pathdata = pathbase + 'data/'
     pathimag = pathbase + 'imag/'
     os.system('mkdir -p %s' % pathdata)
     os.system('mkdir -p %s' % pathimag)
     for strgclus in [ \
-                     #'targets_vf', \
-                     #'sne_matched_03172021', \
-                     'lygos_rerun_1', \
-                     #'SNe-nominal-mission-all', 'SNe-extendedmission-27-32', 'SNe-S28-TNS-TESS', 'SNe_fausnaugh18' \
+                     'Cycle1-matched', \
+                     'Cycle2-matched', \
+                     'Cycle3-matched', \
                     ]:
 
         pathcsvv = pathdata + '%s.csv' % strgclus
@@ -422,15 +409,16 @@ def cnfg_lindsey():
             print(decltarg)
             
             dictoutp = lygos.init( \
-                                       rasctarg=rasctarg, \
-                                       decltarg=decltarg, \
-                                       labltarg=labltarg, \
-                                       boolcbvs=False, \
-                                       strgclus=strgclus, \
-                                       booltpxflygo=False, \
-                                       boolbdtr=False, \
-                                       boolplotrflx=True, \
-                                      )
+                                  rasctarg=rasctarg, \
+                                  decltarg=decltarg, \
+                                  labltarg=labltarg, \
+                                  numbside=5, \
+                                  booldetrcbvs=False, \
+                                  strgclus=strgclus, \
+                                  booltpxflygo=False, \
+                                  boolplotcntp=True, \
+                                  boolplotrflx=True, \
+                                 )
             
             listtsec = dictoutp['listtsec']
             numbtsec = len(listtsec)
@@ -475,7 +463,6 @@ def cnfg_DJ():
                  #boolplotquat=True, \
                  #boolanim=True, \
                  strgtarg=strgtarg, \
-                 #boolbdtr=False, \
                 )
             #break
             #k += 1
@@ -504,6 +491,7 @@ def cnfg_ASASSN20qc():
     '''
     13 July 2021, AGN from DJ
     '''
+    
     rasctarg = 63.260208 
     decltarg = -53.0727
 
@@ -533,7 +521,7 @@ def cnfg_ASASSN20qc():
     refrarrytser[:, 2] = linevalu[:, 3]
    
     dictmileinpt = dict()
-    dictmileinpt['listtypeobjt'] = ['supn']
+    dictmileinpt['listtypemodl'] = ['supn']
     
     listnumbside = [7, 11, 15]
     #dictmileinpt['listlimttimemask'] = [[[[-np.inf, 2457000 + 2175], [2457000 + 2186.5, 2457000 + 2187.5]]]]
