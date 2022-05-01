@@ -1,19 +1,16 @@
 import os, sys
 import numpy as np
 
+import pandas as pd
 import lygos
+import ephesus
 import miletos
+import tdpy
 from tdpy import summgene
 
-# first, make sure that the environment variable $TCAT_DATA_PATH is set to the folder, where you would like the output plots and data to appear
+import matplotlib.pyplot as plt
 
-def cnfg_HATP19():
-
-    strgmast = 'HAT-P-19'
-    lygos.init( \
-               strgmast=strgmast, \
-              )
-        
+# first, make sure that the environment variable $LYGOS_DATA_PATH is set to the folder, where you would like the output plots and data to appear
 
 def IRAS090263817():
    
@@ -22,7 +19,7 @@ def IRAS090263817():
     decltarg = -38.4895431
 
     for k in range(1, 4):
-        lygos.init(rasctarg=rasctarg, decltarg=decltarg, labltarg=labltarg, maxmnumbstar=k, boolplotrflx=True, boolplotcntp=True)
+        lygos.init(rasctarg=rasctarg, decltarg=decltarg, labltarg=labltarg, maxmnumbstar=k)
 
 
 def ASASNN():
@@ -36,7 +33,6 @@ def ASASNN():
         lygos.init( \
                    strgmast=strgmast, \
                    strgclus='ASASSN', \
-                   boolplotrflx=True, \
                   )
 
 
@@ -51,7 +47,6 @@ def cnfg_TOI2406():
 
     lygos.init( \
                    toiitarg=2406, \
-                   boolplotrflx=True, \
                    #ticitarg=212957629, \
                    #labltarg='TOI-2406', \
                   )
@@ -61,10 +56,8 @@ def cnfg_WASP121():
     
     lygos.init( \
                strgmast='WASP-121', \
-               boolplotquat=True, \
-               boolcalcconr=True, \
-               boolanim=True, \
-               boolanimframtotl=False, \
+               typepsfninfe='fixd', \
+               listtsecsele=[7, 33, 34], \
               )
         
 
@@ -73,17 +66,26 @@ def cnfg_TOI1233():
     lygos.init( \
          toiitarg=1233, \
          numbside=21, \
-         boolplotquat=True, \
-         boolplotrflx=True, \
-         boolanim=True, \
-         boolanimframtotl=False, \
         )
         
 
-def cnfg_V563Lyr():
+def cnfg_requests():
     
     lygos.init( \
-         strgmast='V563 Lyr', \
+         #strgmast='V563 Lyr', \
+         
+         # from Ozgur Basturk
+         strgmast='HAT-P-19', \
+
+         # from Ben Rackham
+         #strgmast='Ross 619', \
+         
+         # from Andrew Vanderburg, white dwarf
+         ticitarg=902906874, \
+        
+         boolfasttpxf=True, \
+         numbside=7, \
+         #boolfittoffs=True, \
         )
 
 
@@ -130,6 +132,29 @@ def cnfg_Luhman16():
         )
         
 
+def cnfg_movingobject():
+
+    labltarg = 'Synthetic Interstellar Object'
+    
+    numbside = 11.
+    dicttrue = dict()
+    dicttrue['xpostarg'] = 5. + np.random.rand()
+    dicttrue['ypostarg'] = 5. + np.random.rand()
+    dicttrue['tmagtarg'] = 10.
+    dicttrue['pmxatarg'] = 1.
+    dicttrue['pmyatarg'] = 1.
+    numbtargneig = 10
+    dicttrue['xposneig'] = 5. + np.random.rand(numbtargneig)
+    dicttrue['yposneig'] = 5. + np.random.rand(numbtargneig)
+    dicttrue['tmagneig'] = 5. + np.random.rand(numbtargneig)
+    
+    lygos.init( \
+         labltarg=labltarg, \
+         typedata='toyy', \
+         dicttrue=dicttrue, \
+        )
+
+
 def cnfg_WD1856():
 
     ticitarg = 267574918
@@ -140,84 +165,184 @@ def cnfg_WD1856():
          labltarg=labltarg, \
          #strgmast=strgmast, \
          ticitarg=ticitarg, \
-         boolanim=True, \
          #datatype='sapp', \
         )
 
 
-def cnfg_contamination():
+def cnfg_syst(typeanls):
     '''
+    Investigate systematics
     typdata:
         'toyy': simulated images based on imaginary temporal footprint as well as imaginary RA, DEC, and Tmag for all sources
         'mock': simulated images based on real temporal footprint as well as real RA, DEC, Tmag for all sources
         'obsd': real images and real RA, DEC, and Tmag for all sources
     '''
-    listtypedata = ['toyy', 'mock', 'obsd']
-    
     # get the features of highly-contaminated sources in the TIC
-    dictpopl = miletos.retr_dictcatltic8('ffimhcon')
+    dictpopl = ephesus.retr_dictpopltic8('ticihcon')
     
-    numbsour = 10
+    typedata = typeanls[:4]
+    typemult = typeanls[4:]
+    
+    pathbase = os.environ['LYGOS_DATA_PATH'] + '/syst/'
+    pathimag = pathbase + 'imag/'
+    
+    numbside = 11
+
+    if typemult == 'sing':
+        numbsour = 2
+        boolanim = False
+        boolfittoffs = True
+    else:
+        numbsour = 100
+        boolanim = False
+        boolfittoffs = False
+    
     indxsour = np.arange(numbsour)
+    listtmag = np.empty(numbsour)
+    listnois = np.empty(numbsour)
+    listsepa = np.empty(numbsour)
 
-    for typedata in listtypedata:
+    dictfitt = dict()
+    dicttrue = dict()
+    for k in indxsour:
         
-        for k in indxsour:
-            if typedata == 'toyy':
-                ticitarg = None
-                labltarg = 'Mock Target %d' % k
-                xpostarg = 5. + np.random.rand()
-                ypostarg = 5. + np.random.rand()
-                tmagtarg = 10.
-                
-                numbneig = 10
-                xposneig = np.random.rand(numbneig) * 11
-                yposneig = np.random.rand(numbneig) * 11
-                tmagneig = np.random.rand(numbneig) * 4 + 10
-                
+        if typemult == 'sing':
+            boolplot = True
+        else:
+            boolplot = False
+        
+        if typemult == 'sing':
+            typepsfninfe = 'locl'
+        else:
+            typepsfninfe = 'fixd'
+            
+        if typemult == 'sing' and k == 0:
+            dicttrue['typepsfnshap'] = 'gauselli'
+            dicttrue['sigmpsfnxpos'] = 0.9
+            dicttrue['sigmpsfnypos'] = 1.2
+            dicttrue['fracskewpsfnxpos'] = 0.4
+            dicttrue['fracskewpsfnypos'] = 0.7
+        
+        if typemult == 'sing' and k == 1:
+            dicttrue['typepsfnshap'] = 'gauscirc'
+            
+        if typedata == 'toyy' or typedata == 'inje':
+            ticitarg = None
+            if typemult == 'sing' or typemult == 'doub':
+                dicttrue['tmagtarg'] = 10.
             else:
-                tmagtarg = None
-                ticitarg = dictpopl['tici'][k], \
-                xpostarg = None
-                ypostarg = None
-                xposneig = None
-                yposneig = None
-                labltarg = None
-
-            lygos.init( \
-                       strgclus='contamination', \
-                       typepsfn='ontf', \
-                                        
-                       boolplotrflx=True, \
-                       boolplotcntp=True, \
-                       boolplotquat=True, \
-                       
-                       ticitarg=ticitarg, \
-                       labltarg=labltarg, \
-                       xpostarg=xpostarg, \
-                       ypostarg=ypostarg, \
-                       tmagtarg=tmagtarg, \
-                       
-                       boolmile=True, \
-
-                       xposneig=xposneig, \
-                       yposneig=yposneig, \
-                       tmagneig=tmagneig, \
-
-                       boolfittoffs=True, \
-                       #boolanim=True, \
-                       typedata=typedata, \
-                      )
+                dicttrue['tmagtarg'] = tdpy.icdf_self(np.random.rand(), 7., 20.)
+            listtmag[k] = dicttrue['tmagtarg']
         
+        if typedata == 'toyy':
+            if typemult == 'sing':
+                strgtarg = 'toyy%s%starg' % (typemult, dicttrue['typepsfnshap'])
+            else:
+                strgtarg = 'toyy%starg%04d' % (typemult, k)
+            labltarg = 'Sim. Image, Sim. T=%.1f Source' % listtmag[k]
+            print('labltarg')
+            print(labltarg)
+            if typemult == 'isol':
+                dicttrue['cntpbackscal'] = 100. # [e-/s]
+                dictfitt['cntpbackscal'] = 90. # [e-/s]
+            
+            if typemult == 'bkgd':
+                dicttrue['cntpbackscal'] = 100. # [e-/s]
+                dictfitt['cntpbackscal'] = 90. # [e-/s]
+            
+            if typemult == 'psfn':
+                dicttrue['sigmpsfn'] = 1. # [px]
+                dictfitt['sigmpsfn'] = 0.9 # [px]
+            
+            rasctarg = None
+            decltarg = None
+            if typemult == 'doub':
+                cent = (numbside - 1.) / 2.
+                offs = tdpy.icdf_self(np.random.rand(), 0., 1.)
+                listsepa[k] = 2. * offs
+                dicttrue['numbneig'] = 1
+                dicttrue['xpostarg'] = cent - offs
+                dicttrue['xposneig'] = np.array([cent + offs])
+                dicttrue['yposneig'] = np.array([cent])
+                dicttrue['tmagneig'] = np.array([10.])
+            if typemult == 'blen':
+                dicttrue['cntpbackscal'] = tdpy.icdf_self(np.random.rand(), 50., 300.) # [e-/s]
+                dicttrue['numbneig'] = 10
+                dicttrue['xposneig'] = tdpy.icdf_self(np.random.rand(dicttrue['numbneig']), 0., numbside - 1.)
+                dicttrue['yposneig'] = tdpy.icdf_self(np.random.rand(dicttrue['numbneig']), 0., numbside - 1.)
+                dicttrue['tmagneig'] = tdpy.icdf_self(np.random.rand(dicttrue['numbneig']), 10., 20.)
 
+        if typedata == 'inje':
+            strgtarg = 'injetarg%04d' % k
+            labltarg = 'Real Image, Injected T=%.3g Source' % listtmag[k]
+            rasctarg = np.random.rand() * 360.
+            decltarg = -90. + np.random.rand() * 180.
+        
+        if typedata == 'obsd':
+            strgtarg = None
+            ticitarg = dictpopl['tici'][k]
+            listtmag[k] = dictpopl['tmag'][k]
+            dicttrue = None
+            rasctarg = None
+            decltarg = None
+            labltarg = None
+
+        dictoutp = lygos.init( \
+                   strgclus='syst', \
+                   
+                   ticitarg=ticitarg, \
+                   rasctarg=rasctarg, \
+                   decltarg=decltarg, \
+                   strgtarg=strgtarg, \
+                   labltarg=labltarg, \
+                   
+                   boolanim=boolanim, \
+                   boolplot=boolplot, \
+                   boolfittoffs=boolfittoffs, \
+        
+                   typepsfninfe=typepsfninfe, \
+                   
+                   dictfitt=dictfitt, \
+                   dicttrue=dicttrue, \
+                   
+                   boolmerg=False, \
+
+                   seedrand=k, \
+
+                   typedata=typedata, \
+                  )
+        
+        if len(dictoutp['listnois']) > 0:
+            listnois[k] = dictoutp['listnois'][0][1, 1]
+    
+    if typemult == 'doub':
+        figr, axis = plt.subplots()
+        axis.scatter(listsepa, listnois, s=2)
+        axis.set_yscale('log')
+        axis.set_ylabel('1-hour CDPP [ppm]')
+        axis.set_xlabel('Separation [px]')
+        #plt.tight_layout()
+        path = pathimag + 'noissepa_%s.pdf' % typemult
+        plt.savefig(path)
+        plt.close()
+    
+    if typemult != 'sing' and typemult != 'doub':
+        figr, axis = plt.subplots()
+        axis.scatter(listtmag, listnois, s=2)
+        axis.set_yscale('log')
+        axis.set_ylabel('1-hour CDPP [ppm]')
+        axis.set_xlabel('TESS Mag')
+        #plt.tight_layout()
+        path = pathimag + 'noistmag_%s.pdf' % typemult
+        plt.savefig(path)
+        plt.close()
+
+    
 def cnfg_GJ299():
     
     lygos.init( \
          #boolfittoffs=True, \
          labltarg='GJ 299', \
-         #typepsfn='ontf', \
-         boolplotquat=True, \
-         boolanim=True, \
          ticitarg=334415465, \
          epocpmot=2019.3, \
         )
@@ -225,7 +350,7 @@ def cnfg_GJ299():
 
 def cnfg_spec():
     
-    path = os.environ['TCAT_DATA_PATH'] + '/data/List_for_MIT_pilot.txt'
+    path = os.environ['LYGOS_DATA_PATH'] + '/data/List_for_MIT_pilot.txt'
     data = np.loadtxt(path, delimiter='\t', skiprows=1)
     numbtarg = data.shape[0]
     indxtarg = np.arange(numbtarg)
@@ -240,7 +365,7 @@ def cnfg_spec():
     
 def cnfg_saul():
     
-    path = os.environ['TCAT_DATA_PATH'] + '/data/list_saul.txt'
+    path = os.environ['LYGOS_DATA_PATH'] + '/data/list_saul.txt'
     strgclus = 'saul'
 
     pathbase = os.environ['LYGOS_DATA_PATH'] + '/%s/' % strgbase
@@ -280,7 +405,7 @@ def cnfg_SPECULOOS():
 
 def cnfg_arry(strgclus):
     
-    pathdata = os.environ['TCAT_DATA_PATH'] + '/data/'
+    pathdata = os.environ['LYGOS_DATA_PATH'] + '/data/'
     if strgclus == 'KeplerEBs':
         path = pathdata + 'KeplerEBs/Kepler_binaries_priority.csv'
     else:
@@ -314,7 +439,7 @@ def chec_runs():
     
     strg = 'spec1313'
 
-    path = os.environ['TCAT_DATA_PATH'] + '/'
+    path = os.environ['LYGOS_DATA_PATH'] + '/'
     liststrgfile = fnmatch.filter(os.listdir(path), '%s_*' % strg)
     numb = len(liststrgfile)
     listbool = np.zeros(numb, dtype=bool)
@@ -322,11 +447,6 @@ def chec_runs():
         liststrgextn = fnmatch.filter(os.listdir(path + strgfile + '/data/'), 'rflx_*')
         if len(liststrgextn) == 1:
             listbool[k] = True
-    print('numb')
-    print(numb)
-    print('np.where(listbool).size')
-    print(np.where(listbool)[0].size)
-    print(float(np.where(listbool)[0].size) / numb)
 
 
 def cnfg_test347543557():
@@ -339,7 +459,6 @@ def cnfg_test347543557():
          ticitarg=ticitarg, \
          labltarg=labltarg, \
          strgtarg=strgtarg, \
-         boolplotframtotl=True, \
          listlimttimeplot=listlimttimeplot, \
         )
 
@@ -412,12 +531,10 @@ def cnfg_lindsey():
                                   rasctarg=rasctarg, \
                                   decltarg=decltarg, \
                                   labltarg=labltarg, \
-                                  numbside=5, \
+                                  #numbside=5, \
                                   booldetrcbvs=False, \
                                   strgclus=strgclus, \
                                   booltpxflygo=False, \
-                                  boolplotcntp=True, \
-                                  boolplotrflx=True, \
                                  )
             
             listtsec = dictoutp['listtsec']
@@ -459,9 +576,6 @@ def cnfg_DJ():
                  labltarg=labltarg, \
                  strgclus=strgclus, \
                  maxmnumbstar=1, \
-                 boolplotrflx=True, \
-                 #boolplotquat=True, \
-                 #boolanim=True, \
                  strgtarg=strgtarg, \
                 )
             #break
@@ -475,11 +589,7 @@ def cnfg_TIC284856863():
     '''
 
     lygos.init( \
-               boolplotrflx=True, \
-               boolplotcntp=True, \
-               boolplotquat=True, \
                boolregrforc=True, \
-               boolplotforc=True, \
                maxmnumbstar=999, \
                maxmdmag=6, \
                ticitarg=284856863, \
@@ -499,7 +609,7 @@ def cnfg_ASASSN20qc():
     
     refrlistlabltser = [['Michael']]
     path = os.environ['LYGOS_DATA_PATH'] + '/data/lc_2020adgm_cleaned_ASASSN20qc'
-    print(path)
+    print('Reading from %s...' % path)
     objtfile = open(path, 'r')
     k = 0
     linevalu = []
@@ -534,34 +644,30 @@ def cnfg_ASASSN20qc():
             dictmileinpt['listtimescalbdtrspln'] = [0.]
             boolfittoffs = False
 
-        lygos.init( \
-                   boolplotrflx=True, \
-                   boolplotcntp=True, \
-                   boolfittoffs=boolfittoffs, \
+        dictoutp = lygos.init( \
+                      boolplotrflx=True, \
+                      boolplotcntp=True, \
+                      boolfittoffs=boolfittoffs, \
                 
-                   refrlistlabltser=refrlistlabltser, \
-                   refrarrytser=refrarrytser, \
+                      refrlistlabltser=refrlistlabltser, \
+                      refrarrytser=refrarrytser, \
 
-                   labltarg=labltarg, \
-                   
-                   listtsecsele=[32], \
-                   dictmileinpt=dictmileinpt, \
-                   
-                   timeoffs=2459000, \
+                      labltarg=labltarg, \
+                      
+                      listtsecsele=[32], \
+                      dictmileinpt=dictmileinpt, \
+                      
+                      timeoffs=2459000, \
 
-                   numbside=numbside, \
+                      numbside=numbside, \
 
-                   rasctarg=rasctarg, \
-                   decltarg=decltarg, \
-                   
-                   boolregrforc=True, \
-                   boolplotforc=True, \
-                  )
-
+                      rasctarg=rasctarg, \
+                      decltarg=decltarg, \
+                      
+                      boolregrforc=True, \
+                     )
 
 
-
-
-globals().get(sys.argv[1])()
+globals().get(sys.argv[1])(*sys.argv[2:])
 
 
