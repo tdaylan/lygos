@@ -46,10 +46,8 @@ def tutorial():
 def cnfg_TOI2406():
 
     lygos.init( \
-                   toiitarg=2406, \
-                   #ticitarg=212957629, \
-                   #labltarg='TOI-2406', \
-                  )
+               toiitarg=2406, \
+              )
 
 
 def cnfg_WASP121():
@@ -99,9 +97,9 @@ def cnfg_Pleides():
 def cnfg_KOI1003():
     
     lygos.init( \
-         ticitarg=122374527, \
-         abltarg='KOI 1003', \
-         #strgmast='KOI-1003', \
+         #ticitarg=122374527, \
+         labltarg='KOI 1003', \
+         strgmast='KOI-1003', \
          epocpmot=2019.3, \
         )
 
@@ -150,7 +148,7 @@ def cnfg_movingobject():
     
     lygos.init( \
          labltarg=labltarg, \
-         typedata='toyy', \
+         typedata='simugene', \
          dicttrue=dicttrue, \
         )
 
@@ -172,16 +170,18 @@ def cnfg_WD1856():
 def cnfg_syst(typeanls):
     '''
     Investigate systematics
-    typdata:
-        'toyy': simulated images based on imaginary temporal footprint as well as imaginary RA, DEC, and Tmag for all sources
+    typedata:
+        'simugene': simulated images based on imaginary temporal footprint as well as imaginary RA, DEC, and Tmag for all sources
         'mock': simulated images based on real temporal footprint as well as real RA, DEC, Tmag for all sources
         'obsd': real images and real RA, DEC, and Tmag for all sources
+    typemult:
+        'sing': single source
+        'doub': two sources
     '''
     # get the features of highly-contaminated sources in the TIC
     dictpopl = ephesus.retr_dictpopltic8('ticihcon')
     
-    typedata = typeanls[:4]
-    typemult = typeanls[4:]
+    typedata, typemult = typeanls.split('_')
     
     pathbase = os.environ['LYGOS_DATA_PATH'] + '/syst/'
     pathimag = pathbase + 'imag/'
@@ -226,7 +226,7 @@ def cnfg_syst(typeanls):
         if typemult == 'sing' and k == 1:
             dicttrue['typepsfnshap'] = 'gauscirc'
             
-        if typedata == 'toyy' or typedata == 'inje':
+        if typedata == 'simugene' or typedata == 'inje':
             ticitarg = None
             if typemult == 'sing' or typemult == 'doub':
                 dicttrue['tmagtarg'] = 10.
@@ -234,11 +234,11 @@ def cnfg_syst(typeanls):
                 dicttrue['tmagtarg'] = tdpy.icdf_self(np.random.rand(), 7., 20.)
             listtmag[k] = dicttrue['tmagtarg']
         
-        if typedata == 'toyy':
+        if typedata == 'simugene':
             if typemult == 'sing':
-                strgtarg = 'toyy%s%starg' % (typemult, dicttrue['typepsfnshap'])
+                strgtarg = 'simugene%s%starg' % (typemult, dicttrue['typepsfnshap'])
             else:
-                strgtarg = 'toyy%starg%04d' % (typemult, k)
+                strgtarg = 'simugene%starg%04d' % (typemult, k)
             labltarg = 'Sim. Image, Sim. T=%.1f Source' % listtmag[k]
             print('labltarg')
             print(labltarg)

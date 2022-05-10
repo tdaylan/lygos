@@ -157,9 +157,13 @@ def plot_cntp(gdat, \
         if boolresi:
             cbar = 'PuOr'
         
-            if vmin is None:
+        if vmin is None:
+            if boolresi:
                 vmax = max(np.amax(cntp), abs(np.amin(cntp)))
                 vmin = -vmax
+            else:
+                vmin = np.amin(cntp[np.where(cntp > 0)])
+                vmax = np.amax(cntp)
 
         if lcur is None:
             figrsize = (6, 6)
@@ -234,11 +238,13 @@ def plot_cntp(gdat, \
 
 
 def plot_lcurcomp(gdat, lcurmodl, stdvlcurmodl, k, indxtsecplot, strgsecc, strgsave, strgplot, timeedge=None, \
-                    strgextn='', indxtimelimt=None, indxtzom=None, boolerrr=False):
+                    strgextn='', \
+                    numbcomp=None, \
+                    indxtimelimt=None, indxtzom=None, boolerrr=False):
     
     if k == 0:
         lablcomp = ', Target'
-    elif k == gdat.fitt.numbcomp - 1:
+    elif k == numbcomp - 1:
         lablcomp = ', Background'
     else:
         lablcomp = ', Neighbor %d' % k
@@ -321,11 +327,12 @@ def plot_lcurcomp(gdat, lcurmodl, stdvlcurmodl, k, indxtsecplot, strgsecc, strgs
     
 def plot_lcur(gdat, lcurmodl, stdvlcurmodl, k, indxtsecplot, strgsecc, strgsave, strgplot, cdpp=None, \
                     timeedge=None, \
+                    numbcomp=None, \
                     strgextn='', indxtimelimt=None, indxtzom=None, boolerrr=False):
     
     if k == 0:
         lablcomp = ', Target source'
-    elif k == gdat.fitt.numbcomp - 1:
+    elif k == numbcomp - 1:
         lablcomp = ', Background'
     else:
         lablcomp = ', Neighbor Source %d' % k
@@ -621,11 +628,14 @@ def setp_cntp(gdat, strg, typecntpscal):
     
     cntp = getattr(gdat, strg)
     
-    vmin = np.nanpercentile(cntp, 0)
-    vmax = np.nanpercentile(cntp, 100)
     if strg.startswith('resi'):
+        vmin = np.nanpercentile(cntp, 0)
+        vmax = np.nanpercentile(cntp, 100)
         vmax = max(abs(vmin), abs(vmax))
         vmin = -vmax
+    else:
+        vmin = np.nanpercentile(cntp[np.where(cntp > 0.)], 0)
+        vmax = np.nanpercentile(cntp, 100)
     
     if typecntpscal == 'asnh':
         vmin = np.arcsinh(vmin)
@@ -1464,6 +1474,10 @@ def init( \
             strgtsec = 'sc%02d' % gdat.listtsec[o]
             for e, nameanls in enumerate(gdat.listnameanls):
                 pathsaverflxtarg = gdat.pathdatatarg + 'rflx_%s%s.csv' % (nameanls, strgsave)
+                print('strgtsec')
+                print(strgtsec)
+                print('gdat.listtsec')
+                print(gdat.listtsec)
                 gdat.dictoutp['pathsaverflxtarg_%s_%s' % (nameanls, strgtsec)] = pathsaverflxtarg
             
                 if os.path.exists(pathsaverflxtarg):
@@ -1804,6 +1818,8 @@ def init( \
                     intg = int((11 - gdat.numbside) / 2)
                     gdat.cntpdata = gdat.cntpdata[intg:11-intg, intg:11-intg, :]
                 elif gdat.numbside > 11:
+                    print('gdat.numbside')
+                    print(gdat.numbside)
                     raise Exception('')
 
             print('Number of raw data points: %d' % gdat.listtime[o].size)
@@ -1903,14 +1919,17 @@ def init( \
             raise Exception('')
 
         if not np.isfinite(gdat.cntpdata).all():
-            raise Exception('')
+            print('gdat.cntpdata')
+            summgene(gdat.cntpdata)
+            print('Not all counts are finite!')
+            #raise Exception('')
 
         if gdat.booldiag:
             if gdat.cntpdatatmed.shape[0] != gdat.numbside:
                 raise Exception('')
         
-        if not np.isfinite(gdat.cntpdatatmed).all():
-            raise Exception('')
+        #if not np.isfinite(gdat.cntpdatatmed).all():
+        #    raise Exception('')
         
         # plot data with initial catalogs (before PM correction)
         if gdat.boolplotcntp:
@@ -2546,8 +2565,15 @@ def init( \
                         print('Normalizing by the median flux...')
                         gdat.fitt.arryrflx[o][0][:, :, 0, x, y] = gdat.listtime[o][:, None]
                         
-                        gdat.fitt.arryrflx[o][0][:, :, 1:, x, y] = gdat.mlikfittcnts
+                        gdat.fitt.arryrflx[o][0][:, :, 1, x, y] = gdat.mlikfittcnts
                         gdat.fitt.arryrflx[o][0][:, :, 2, x, y] = gdat.stdvfittcnts
+                        
+                        # filter based on background
+                        print('gdat.fitt.arryrflx[o][0][:, -1, 1:, x, y]')
+                        summgene(gdat.fitt.arryrflx[o][0][:, -1, 1:, x, y])
+                        indxgoodbkgd = np.where(gdat.fitt.arryrflx[o][0][:, -1, 1:, x, y] < 400.)[0]
+                        gdat.fitt.arryrflx[o][0][:, :, :, x, y] = gdat.fitt.arryrflx[o][0][indxgoodbkgd, :, :, x, y]
+
                         # normalize fluxes to get relative fluxes
                         if gdat.boolnorm:
                             for k in gdat.indxcomp:
@@ -2670,18 +2696,10 @@ def init( \
                 # assess noise in the light curve
                 for e in gdat.indxanls:
                     if x == 1 and y == 1:
-                        print('gdat.fitt.arryrflx[o][e][:, 1, x, y]')
-                        summgene(gdat.fitt.arryrflx[o][e][:, 1, x, y])
                         arryrflxrbn = np.copy(gdat.fitt.arryrflx[o][e][:, :3, x, y])
                         arryrflxrbn[:, 1] = gdat.fitt.arryrflx[o][e][:, 1, x, y] - scipy.ndimage.median_filter(gdat.fitt.arryrflx[o][e][:, 1, x, y], size=50)
-                        print('arryrflxrbn[:, 1]')
-                        summgene(arryrflxrbn[:, 1])
                         arryrflxrbn = ephesus.rebn_tser(arryrflxrbn, delt=1. / 24.)
-                        print('arryrflxrbn[:, 1]')
-                        summgene(arryrflxrbn[:, 1])
                         gdat.listnois[o][e][x, y] = 1e6 * np.nanstd(arryrflxrbn[:, 1]) / np.median(gdat.fitt.arryrflx[o][e][:, 1, x, y])
-                        print('gdat.listnois[o][e][x, y]')
-                        summgene(gdat.listnois[o][e][x, y])
                         print('FUDGE FACTOR!!!')
                         gdat.listnois[o][e][x, y] /= 30.
                 
@@ -2699,8 +2717,8 @@ def init( \
                     # plot light curve derived from aperture photometry
                     if 'aper' in gdat.listnameanls:
                         for p in gdat.indxaper:
-                            plot_lcur(gdat, gdat.cntpapertarg[:, p], 0.01 * gdat.cntpapertarg[:, p], 0, o, '_' + strgsecc, strgsave, 'aper%04d' % p)
-                            plot_lcur(gdat, gdat.cntpaperback[:, p], 0.01 * gdat.cntpaperback[:, p], 1, o, '_' + strgsecc, strgsave, 'aper%04d' % p)
+                            plot_lcur(gdat, gdat.cntpapertarg[:, p], 0.01 * gdat.cntpapertarg[:, p], 0, o, '_' + strgsecc, strgsave, 'aper%04d' % p, numbcomp=2)
+                            plot_lcur(gdat, gdat.cntpaperback[:, p], 0.01 * gdat.cntpaperback[:, p], 1, o, '_' + strgsecc, strgsave, 'aper%04d' % p, numbcomp=2)
                         
                     #if gdat.booldetrcbvs:
                     #    plot_lcur(gdat, gdat.fitt.arryrflx[o][:, 0, 1, x, y], gdat.fitt.arryrflx[o][:, 0, 2, x, y], 0, o, '_' + strgsecc, strgsave, 'detrcbvs')
@@ -2712,14 +2730,17 @@ def init( \
                             if x == 1 and y == 1 or k == 0:
                                 
                                 plot_lcur(gdat, gdat.fitt.arryrflx[o][0][:, 1+2*k, x, y], gdat.fitt.arryrflx[o][0][:, 1+2*k+1, x, y], k, o, '_' + strgsecc, \
-                                                                                                                            strgsave, 'stan', cdpp=gdat.listnois[o][0][x, y])
+                                                                                                           strgsave, 'stan', numbcomp=gdat.numbcomp, cdpp=gdat.listnois[o][0][x, y])
                                 if gdat.boolrefrtser[o] and x == 1 and y == 1:
-                                    plot_lcurcomp(gdat, gdat.fitt.arryrflx[o][0][:, 1+2*k, x, y], gdat.fitt.arryrflx[o][0][:, 1+2*k+1, x, y], k, o, '_' + strgsecc, strgsave, 'stan')
+                                    plot_lcurcomp(gdat, gdat.fitt.arryrflx[o][0][:, 1+2*k, x, y], gdat.fitt.arryrflx[o][0][:, 1+2*k+1, x, y], k, o, '_' + strgsecc, strgsave, \
+                                                                                                                                                    'stan', \
+                                                                                                                                                    numbcomp=gdat.numbcomp, \
+                                                                                                                                                    )
                                 
                                 if gdat.listlimttimetzom is not None:
                                     for p in range(len(gdat.listlimttimetzom)):
                                         plot_lcur(gdat, gdat.fitt.arryrflx[o][0][:, 1+2*k, x, y], gdat.fitt.arryrflx[o][0][:, 1+2*k+1, x, y], k, o, '_' + strgsecc, \
-                                                                                              strgsave, 'zoom', indxtimelimt=gdat.indxtimelimt[p], indxtzom=p)
+                                                                                           strgsave, 'zoom', numbcomp=gdat.numbcomp, indxtimelimt=gdat.indxtimelimt[p], indxtzom=p)
                             
                 if 'psfn' in gdat.listnameanls and gdat.fitt.typepsfnshap != 'data':
                     for typeplotcntp in listtypeplotcntp:
@@ -2797,8 +2818,17 @@ def init( \
         gdat.dictoutp['fitt'+name] = valu
     
     for name, valu in gdat.__dict__.items():
+        if name.startswith('strgtitl'):
+            continue
+        if name.startswith('strghead'):
+            continue
         gdat.dictoutp[name] = valu
     
+    print('gdat.dictoutp')
+    for name in gdat.dictoutp:
+        if name.startswith('path'):
+            print(name)
+
     timefinltotl = timemodu.time()
     print('lygos ran in %g seconds.' % (timefinltotl - timeinittotl))
     print('')                
