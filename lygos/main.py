@@ -1591,21 +1591,21 @@ def init( \
     gdat.refr.cequ = [[[] for o in gdat.indxtsec] for q in gdat.refr.indxcatl]
     gdat.indxsourbrgt = [[[] for o in gdat.indxtsec] for q in gdat.refr.indxcatl]
     for q in gdat.refr.indxcatl:
+        print('Number of sources in the reference catalog %d: %d' % (q, len(gdat.refr.catlbase[q]['tmag'])))
         for o in gdat.indxtsec:
             print('Sector %d' % gdat.listtsec[o])
             for strgfeat in gdat.refr.catlbase[q].keys():#gdat.refr.liststrgfeat[q]:
                 gdat.refr.catl[q][o][strgfeat] = np.array(gdat.refr.catlbase[q][strgfeat])
-            print('Number of sources in the reference catalog %d: %d' % (q, len(gdat.refr.catl[q][o]['tmag'])))
             
-            if gdat.typetarg != 'posi':
-                dmag = gdat.refr.catl[q][o]['tmag'] - gdat.refr.catl[q][o]['tmag'][0]
+    for q in gdat.refr.indxcatl:
+        if gdat.typetarg != 'posi':
+            dmag = gdat.refr.catlbase[q]['tmag'] - gdat.refr.catlbase[q]['tmag'][0]
+            for o in gdat.indxtsec:
                 gdat.indxsourbrgt[q][o] = np.where(dmag < gdat.maxmdmag)[0]
-                gdat.numbrefrbrgt = gdat.indxsourbrgt[q][o].size
-                magtcutt = gdat.refr.catl[q][o]['tmag'][0] + gdat.maxmdmag
-                print('%d of the reference catalog sources are brighter than the magnitude cutoff of %g.' % (gdat.numbrefrbrgt, magtcutt))
+            gdat.numbrefrbrgt = gdat.indxsourbrgt[q][0].size
+            magtcutt = gdat.refr.catlbase[q]['tmag'][0] + gdat.maxmdmag
+            print('%d of the reference catalog sources are brighter than the magnitude cutoff of %g.' % (gdat.numbrefrbrgt, magtcutt))
                 
-            gdat.refr.numbsour[q, o] = gdat.refr.catl[q][o]['cnts'].size
-
     #print('Removing nearby sources that are too close...')
     ## calculate angular distances
     #distangl = 180. * np.sqrt((gdat.refr.catl[q][o]['rasc'][None, :] - gdat.refr.catl[q][o]['rasc'][:, None])**2 + \
