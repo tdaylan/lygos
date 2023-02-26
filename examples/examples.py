@@ -3,7 +3,7 @@ import numpy as np
 
 import pandas as pd
 import lygos
-import ephesus
+import ephesos
 import miletos
 import tdpy
 from tdpy import summgene
@@ -11,6 +11,45 @@ from tdpy import summgene
 import matplotlib.pyplot as plt
 
 # first, make sure that the environment variable $LYGOS_DATA_PATH is set to the folder, where you would like the output plots and data to appear
+
+def cnfg_lsst_exop():
+    '''
+    Pipeline to simulate LSST
+    '''   
+    for typedata in ['simutoyy', 'simuskyy']:
+        lygos.init( \
+                   strgmast='TOI-1233', \
+                   liststrginst=['LSST-r'], \
+                   typedata=typedata, \
+                  )
+
+
+def cnfg_TESSGeo():
+    '''
+    Pipeline to simulate TESSGeo light curves'''   
+    
+    strgmast = 'Vega'
+    
+    #nametarg = 'Earth'
+    #nametarg = None
+    
+    listtime = [[np.array([0.])]]
+    
+    #for typedata in ['simutoyy', 'simuskyy']:
+    for typedata in ['simuskyy']:
+        lygos.init( \
+                   strgmast=strgmast, \
+                    
+                   listtime=listtime, \
+                   #strgmast=strgmast, \
+                   #nametarg=nametarg, \
+                   maxmtmagcatl=6., \
+                   numbside=[500, 50, 5, 5], \
+                   
+                   liststrginst=['TESSCam', 'FoveaCam', 'ULTRASAT', 'TESS'], \
+                   typedata=typedata, \
+                  )
+
 
 def IRAS090263817():
    
@@ -59,11 +98,26 @@ def cnfg_WASP121():
               )
         
 
+def cnfg_Sirius():
+    
+    lygos.init( \
+         strgmast='Sirius', \
+         liststrginst=['TESS'], \
+         numbside=[51], \
+         maxmtmagcatl=9., \
+        )
+        
+
 def cnfg_TOI1233():
     
     lygos.init( \
          toiitarg=1233, \
-         numbside=21, \
+         numbside=[21], \
+        )
+        
+    lygos.init( \
+         toiitarg=1233, \
+         numbside=[51], \
         )
         
 
@@ -82,7 +136,7 @@ def cnfg_requests():
          ticitarg=902906874, \
         
          boolfasttpxf=True, \
-         numbside=7, \
+         numbside=[7], \
          #boolfittoffs=True, \
         )
 
@@ -131,57 +185,60 @@ def cnfg_Luhman16():
         
 
 def cnfg_movingobject():
-
-    labltarg = 'Synthetic Interstellar Object'
     
-    numbside = 11.
-    dicttrue = dict()
-    dicttrue['xpostarg'] = 5. + np.random.rand()
-    dicttrue['ypostarg'] = 5. + np.random.rand()
-    dicttrue['tmagtarg'] = 10.
-    dicttrue['pmxatarg'] = 1.
-    dicttrue['pmyatarg'] = 1.
     numbtargneig = 10
-    dicttrue['xposneig'] = 5. + np.random.rand(numbtargneig)
-    dicttrue['yposneig'] = 5. + np.random.rand(numbtargneig)
-    dicttrue['tmagneig'] = 5. + np.random.rand(numbtargneig)
     
-    lygos.init( \
-         labltarg=labltarg, \
-         typedata='simugene', \
-         dicttrue=dicttrue, \
-        )
-
-
-def cnfg_WD1856():
-
-    ticitarg = 267574918
-    strgmast = 'TIC 267574918'
-    labltarg = 'WD 1856'
+    dicttrue = dict()
     
-    lygos.init( \
-         labltarg=labltarg, \
-         #strgmast=strgmast, \
-         ticitarg=ticitarg, \
-         #datatype='sapp', \
-        )
+    numbtarg = 1
+    
+    typepsfninfe = 'fixd'
+        
+
+    for k in range(1):
+        strgtarg = 'ISOB%04d' % k
+        labltarg = 'Synthetic ISO %d' % k
+        
+        dicttrue['xpostarg'] = 5. + np.random.rand()
+        dicttrue['ypostarg'] = 5. + np.random.rand()
+        dicttrue['boolssob'] = True
+        dicttrue['anglvelotarg'] = np.random.rand() * 2. * np.pi
+        dicttrue['disttarg'] = np.random.rand() * 400.
+        dicttrue['tmagtarg'] = 10.
+        dicttrue['pmxatarg'] = 1.
+        dicttrue['pmyatarg'] = 1.
+        dicttrue['xposneig'] = 5. + np.random.rand(numbtargneig)
+        dicttrue['yposneig'] = 5. + np.random.rand(numbtargneig)
+        dicttrue['tmagneig'] = 5. + np.random.rand(numbtargneig)
+        
+        lygos.init( \
+             strgtarg=strgtarg, \
+             labltarg=labltarg, \
+             typedata='simutoyy', \
+             dicttrue=dicttrue, \
+                       
+             strgclus='isob', \
+             
+             typepsfninfe=typepsfninfe, \
+
+            )
 
 
 def cnfg_syst(typeanls):
     '''
     Investigate systematics
-    typedata:
-        'simugene': simulated images based on imaginary temporal footprint as well as imaginary RA, DEC, and Tmag for all sources
-        'mock': simulated images based on real temporal footprint as well as real RA, DEC, Tmag for all sources
-        'obsd': real images and real RA, DEC, and Tmag for all sources
     typemult:
         'sing': single source
         'doub': two sources
     '''
     # get the features of highly-contaminated sources in the TIC
-    dictpopl = ephesus.retr_dictpopltic8('ticihcon')
+    dictpopl = ephesos.retr_dictpopltic8('tici_prms_allm_hcon')
     
-    typedata, typemult = typeanls.split('_')
+    if typeanls == 'obsd':
+        typemult = None
+        typedata = typeanls
+    else:
+        typedata, typemult = typeanls.split('_')
     
     pathbase = os.environ['LYGOS_DATA_PATH'] + '/syst/'
     pathimag = pathbase + 'imag/'
@@ -202,14 +259,18 @@ def cnfg_syst(typeanls):
     listnois = np.empty(numbsour)
     listsepa = np.empty(numbsour)
 
+    strgclus = 'systematics_' + typeanls
+
+    boolplot = True
+
     dictfitt = dict()
     dicttrue = dict()
     for k in indxsour:
         
-        if typemult == 'sing':
-            boolplot = True
-        else:
-            boolplot = False
+        #if typemult == 'sing':
+        #    boolplot = True
+        #else:
+        #    boolplot = False
         
         if typemult == 'sing':
             typepsfninfe = 'locl'
@@ -226,7 +287,7 @@ def cnfg_syst(typeanls):
         if typemult == 'sing' and k == 1:
             dicttrue['typepsfnshap'] = 'gauscirc'
             
-        if typedata == 'simugene' or typedata == 'inje':
+        if typedata == 'simutoyy' or typedata == 'inje':
             ticitarg = None
             if typemult == 'sing' or typemult == 'doub':
                 dicttrue['tmagtarg'] = 10.
@@ -234,7 +295,7 @@ def cnfg_syst(typeanls):
                 dicttrue['tmagtarg'] = tdpy.icdf_self(np.random.rand(), 7., 20.)
             listtmag[k] = dicttrue['tmagtarg']
         
-        if typedata == 'simugene':
+        if typedata == 'simutoyy':
             if typemult == 'sing':
                 strgtarg = 'simugene%s%starg' % (typemult, dicttrue['typepsfnshap'])
             else:
@@ -288,7 +349,7 @@ def cnfg_syst(typeanls):
             labltarg = None
 
         dictoutp = lygos.init( \
-                   strgclus='syst', \
+                   strgclus=strgclus, \
                    
                    ticitarg=ticitarg, \
                    rasctarg=rasctarg, \
@@ -313,7 +374,7 @@ def cnfg_syst(typeanls):
                   )
         
         if len(dictoutp['listnois']) > 0:
-            listnois[k] = dictoutp['listnois'][0][1, 1]
+            listnois[k] = dictoutp['listnois'][0][0][1, 1]
     
     if typemult == 'doub':
         figr, axis = plt.subplots()
@@ -480,7 +541,7 @@ def cnfg_GRB191016A():
          labltarg=labltarg, \
          boolcuttqual=boolcuttqual, \
          boolfittoffs=boolfittoffs, \
-         numbside=9, \
+         numbside=[9], \
          listtimeplotline=listtimeplotline, \
          listlimttimeplot=listlimttimeplot, \
         )
@@ -531,7 +592,7 @@ def cnfg_lindsey():
                                   rasctarg=rasctarg, \
                                   decltarg=decltarg, \
                                   labltarg=labltarg, \
-                                  #numbside=5, \
+                                  #numbside=[5], \
                                   booldetrcbvs=False, \
                                   strgclus=strgclus, \
                                   booltpxflygo=False, \
@@ -633,7 +694,7 @@ def cnfg_ASASSN20qc():
     dictmileinpt = dict()
     dictmileinpt['listtypemodl'] = ['supn']
     
-    listnumbside = [7, 11, 15]
+    listnumbside = [[7], [11], [15]]
     #dictmileinpt['listlimttimemask'] = [[[[-np.inf, 2457000 + 2175], [2457000 + 2186.5, 2457000 + 2187.5]]]]
     dictmileinpt['listlimttimemask'] = [[[[2457000 + 2186.5, 2457000 + 2187.5]]]]
     for numbside in listnumbside:

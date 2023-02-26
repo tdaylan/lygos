@@ -1,7 +1,7 @@
-# lygos
+# Lygos
 
 ## Introduction
-lygos is an inference framework to model Transition Exoplanet Survey Satellite (TESS) data using Point Source Function (PSF) photometry. It extracts light curves from a time-series of images with well-characterized uncertainties.
+Lygos is an inference framework to model Transition Exoplanet Survey Satellite (TESS) data using Point Source Function (PSF) photometry. It extracts light curves from a time-series of images with well-characterized uncertainties.
 
 ## Usage
 First, import the lygos module.
