@@ -9,8 +9,6 @@ from scipy import ndimage
 
 import h5py
 
-import imageio
-
 import pandas as pd
 
 import matplotlib
@@ -23,8 +21,11 @@ import astroquery
 import astropy
 import astropy.wcs
 
-from tdpy.util import summgene
+import miletos
+
 import tdpy
+from tdpy.util import summgene
+
 import ephesos
 
 
@@ -103,7 +104,7 @@ def anim_cntp(gdat, cntp, p, o, typecntpscal, nameplotcntp, \
         if listtimelabl[t] is not None:
             strgtitl += ', %s' % listtimelabl[t]
         
-        path = plot_cntp(gdat, cntp[:, :, t], p, o, typecntpscal, gdat.pathimagtarg, nameplotcntp, 'fitt', \
+        path = plot_cntp(gdat, cntp[:, :, t], p, o, typecntpscal, gdat.pathvisutarg, nameplotcntp, 'fitt', \
                                                 strgtitl=strgtitl, boolresi=boolresi, listindxpixlcolr=listindxpixlcolr, \
                                                                                             timelabl=listtimelabl[t], thistime=time[t], indxtimeplot=t, \
                                                                                                 vmin=vmin, vmax=vmax, lcur=lcur, time=time)
@@ -113,9 +114,9 @@ def anim_cntp(gdat, cntp, p, o, typecntpscal, nameplotcntp, \
     return listpath
 
 
-def plot_histcntp(gdat, cntp, pathimag, strgvarb):
+def plot_histcntp(gdat, cntp, pathvisu, strgvarb):
     
-    path = pathimag + 'hist%s%s.%s' % (strgvarb, gdat.strgsave, gdat.typefileplot)
+    path = pathvisu + 'hist%s%s.%s' % (strgvarb, gdat.strgsave, gdat.typefileplot)
     if not os.path.exists(path):
         figr, axis = plt.subplots(figsize=gdat.sizefigrsing)
         bins = np.sinh(np.linspace(np.arcsinh(np.nanmin(cntp)), np.arcsinh(np.nanmax(cntp)), 200))
@@ -317,7 +318,7 @@ def plot_lcurcomp(gdat, lcurmodl, stdvlcurmodl, k, p, o, strgchun, strgplot, tim
         lcurmodl = lcurmodl[indxtimelimt]
 
     nameplot = 'tser%scomp_%s_s%03d' % (gdat.strgnorm, strgplot, k)
-    path = retr_pathvisu(gdat, gdat.pathimagtarg, nameplot, indxtzom=indxtzom)
+    path = retr_pathvisu(gdat, gdat.pathvisutarg, nameplot, indxtzom=indxtzom)
     
     # skip the plot if it has been made before
     if os.path.exists(path):
@@ -414,7 +415,7 @@ def plot_lcur(gdat, lcurmodl, stdvlcurmodl, k, p, o, strgchun, strgplot, cdpp=No
         lcurmodl = lcurmodl[indxtimelimt]
 
     nameplot = 'tser%s_%s_s%03d' % (gdat.strgnorm, strgplot, k)
-    path = retr_pathvisu(gdat, gdat.pathimagtarg, nameplot, indxtzom=indxtzom)
+    path = retr_pathvisu(gdat, gdat.pathvisutarg, nameplot, indxtzom=indxtzom)
     
     # skip the plot if it has been made before
     if os.path.exists(path):
@@ -673,15 +674,11 @@ def retr_llik(para, gdat):
     #print(gdat.cntpdatatmed)
     #print('cntpmodl')
     #print(cntpmodl)
-    #print('')
-    #print('')
-    #print('')
-    #print('')
     
     if gdat.booldiag and not np.isfinite(llik):
         print('')
         print('')
-        print('Likelihood is Infinite!!')
+        print('')
         print('gdat.cntpdatasexp')
         summgene(gdat.cntpdatasexp)
         print('xpos')
@@ -698,7 +695,7 @@ def retr_llik(para, gdat):
         summgene(cntpmodl)
         print('llik')
         print(llik)
-        raise Exception('')
+        raise Exception('Likelihood is Infinite!')
 
     return llik
 
@@ -983,7 +980,11 @@ def init( \
          # plot extensions
          typefileplot='png', \
         
-         # verbosity level
+         # type of verbosity
+         ## -1: absolutely no text
+         ##  0: no text output except critical warnings
+         ##  1: minimal description of the execution
+         ##  2: detailed description of the execution
          typeverb=1, \
         
          # Boolean flag to turn on diagnostic mode
@@ -1140,7 +1141,7 @@ def init( \
     print('lygos initialized at %s...' % gdat.strgtimestmp)
     # paths
     gdat.pathbase = os.environ['LYGOS_DATA_PATH'] + '/'
-    gdat.pathimaglygo = gdat.pathbase + 'imag/'
+    gdat.pathvisulygo = gdat.pathbase + 'imag/'
     gdat.pathdatalygo = gdat.pathbase + 'data/'
     
     np.set_printoptions(linewidth=200, \
@@ -1157,6 +1158,9 @@ def init( \
                 gdat.ticitarg is None and gdat.strgmast is not None and gdat.toiitarg is None and gdat.rasctarg is None and gdat.decltarg is None or \
                 gdat.ticitarg is None and gdat.strgmast is None and gdat.toiitarg is not None and gdat.rasctarg is None and gdat.decltarg is None or \
                 gdat.ticitarg is None and gdat.strgmast is None and gdat.toiitarg is None and gdat.rasctarg is not None and gdat.decltarg is not None):
+            print('')
+            print('')
+            print('')
             print('gdat.ticitarg')
             print(gdat.ticitarg)
             print('gdat.strgmast')
@@ -1170,6 +1174,9 @@ def init( \
             raise Exception('Either a TIC ID (ticitarg), RA&DEC (rasctarg and decltarg), MAST key (strgmast) or a TOI number (toiitarg) should be provided.')
     
     if gdat.typedata == 'simutoyy' and gdat.true.tmagtarg is None:
+        print('')
+        print('')
+        print('')
         print('gdat.typedata')
         print(gdat.typedata)
         print('gdat.true.tmagtarg')
@@ -1246,7 +1253,7 @@ def init( \
     for p in gdat.indxinst:
         if gdat.liststrginst[p].startswith('LSST'):
             gdat.sizepixl[p] = 0.2
-        elif gdat.liststrginst[p] == 'TESS':
+        elif gdat.liststrginst[p].startswith('TESS'):
             # temp
             gdat.sizepixl[p] = 21.
         elif gdat.liststrginst[p] == 'TESSCam':
@@ -1412,10 +1419,14 @@ def init( \
         
         # estimate the counts
         for p in gdat.indxinst:
-            if gdat.liststrginst[p] == 'TESS':
+            if gdat.liststrginst[p].startswith('TESS'):
                 offszero = 20.4
             else:
-                raise Exception('')
+                print('')
+                print('')
+                print('')
+                raise Exception('gdat.liststrginst[p] undefined.')
+
             gdat.refr.catlbase[q]['cntsesti'] = 10**(-(gdat.refr.catlbase[q]['tmag'] - offszero) / 2.5)
             
         # add the target to the first reference catalog the target is a coordinate on the sky
@@ -1503,25 +1514,26 @@ def init( \
     
     # TESS-specific
     ## current pointing ID of TESS
-    gdat.ipnttesscurr = 55
+    # temp: fix this
+    gdat.ipnttesscurr = 155
 
     gdat.pathdatatarg = gdat.pathtarg + 'data/'
-    gdat.pathimagtarg = gdat.pathtarg + 'imag/'
+    gdat.pathvisutarg = gdat.pathtarg + 'imag/'
     gdat.pathclus = gdat.pathbase + '%s' % gdat.strgclus
     gdat.pathdataclus = gdat.pathclus + 'data/'
-    gdat.pathimagclus = gdat.pathclus + 'imag/'
+    gdat.pathvisuclus = gdat.pathclus + 'imag/'
     
     if gdat.boolplot:
-        os.system('mkdir -p %s' % gdat.pathimaglygo)
-        os.system('mkdir -p %s' % gdat.pathimagtarg)
-        os.system('mkdir -p %s' % gdat.pathimagclus)
+        os.system('mkdir -p %s' % gdat.pathvisulygo)
+        os.system('mkdir -p %s' % gdat.pathvisutarg)
+        os.system('mkdir -p %s' % gdat.pathvisuclus)
     os.system('mkdir -p %s' % gdat.pathdatalygo)
     os.system('mkdir -p %s' % gdat.pathdatatarg)
     os.system('mkdir -p %s' % gdat.pathdataclus)
     
     # create a separate folder to place the PSF fit output
-    gdat.pathimagtargsexp = gdat.pathimagtarg + 'sexp/'
-    os.system('mkdir -p %s' % gdat.pathimagtargsexp)
+    gdat.pathvisutargsexp = gdat.pathvisutarg + 'sexp/'
+    os.system('mkdir -p %s' % gdat.pathvisutargsexp)
    
     # header that will be added to the output CSV files
     gdat.strgheadtarg = 'time [BJD], relative flux, relative flux error'
@@ -1581,15 +1593,15 @@ def init( \
                 os.system('mkdir -p %s' % gdat.pathdatatargtcut)
                 
                 #strgsrch = '%g %g' % (gdat.rasctarg, gdat.decltarg)
-                #print('Calling TESSCut at %s with size %d to get the data...' % (strgsrch, gdat.numbside))
-                #listhdundatatemp = astroquery.mast.Tesscut.get_cutouts(coordinates=strgsrch, size=gdat.numbside)
+                #print('Calling TESSCut at %s with size %d to get the data...' % (strgsrch, gdat.numbside[p]))
+                #listhdundatatemp = astroquery.mast.Tesscut.get_cutouts(coordinates=strgsrch, size=gdat.numbside[p])
 
                 timeinit = timemodu.time()
 
                 print('')
                 print('Will download the data via wget, unzip, and read the files...')
                 
-                strgfile = 'astrocut?ra=%.6f&dec=%.6f&y=%d&x=%d' % (gdat.rasctarg, gdat.decltarg, gdat.numbside, gdat.numbside)
+                strgfile = 'astrocut?ra=%.6f&dec=%.6f&y=%d&x=%d' % (gdat.rasctarg, gdat.decltarg, gdat.numbside[p], gdat.numbside[p])
                 pathastr = os.environ['LYGOS_DATA_PATH'] + '/data/tesscutttemp/'
                 strgfileastrzipp = '%sastrocut_%s.zip' % (pathastr, strgfile)
                 
@@ -1601,7 +1613,7 @@ def init( \
                 print(cmnd)
                 os.system(cmnd)
                 
-                strgkeyy = "tess-s*_%.6f_%.6f_%dx%d_astrocut.fits" % (gdat.rasctarg, gdat.decltarg, gdat.numbside, gdat.numbside)
+                strgkeyy = "tess-s*_%.6f_%.6f_%dx%d_astrocut.fits" % (gdat.rasctarg, gdat.decltarg, gdat.numbside[p], gdat.numbside[p])
                 liststrgfile = fnmatch.filter(os.listdir(pathastr), strgkeyy)
                 
                 listhdundatatemp = []
@@ -1794,6 +1806,8 @@ def init( \
     # number of pointings
     gdat.numbpoin = np.ones(gdat.numbinst, dtype=int)
     for p in gdat.indxinst:
+        print('gdat.listipnt[p]')
+        print(gdat.listipnt[p])
         gdat.numbpoin[p] = gdat.listipnt[p].size
     
     for p in gdat.indxinst:
@@ -1858,6 +1872,16 @@ def init( \
                     gdat.booltpxf[p] = ephesos.retr_booltpxf(gdat.listipnt[p], gdat.listipntspoc)
 
             if gdat.booldiag:
+                if not gdat.booltesspast:
+                    print('')
+                    print('')
+                    print('')
+                    print('gdat.listipnt[p]')
+                    print(gdat.listipnt[p])
+                    print('gdat.ipnttesscurr')
+                    print(gdat.ipnttesscurr)
+                    raise Exception('gdat.booltesspast is False.')
+
                 for o in gdat.indxtsec[p]:
                     if gdat.booltpxf[p][o]:
                         if gdat.boolinptnumbside:
@@ -2254,6 +2278,9 @@ def init( \
     gdat.listnois = [[[[] for e in gdat.indxanls] for o in gdat.indxtsec[p]] for p in gdat.indxinst]
     
     if gdat.strgtarg == 'Earth':
+        
+        import imageio
+
         pathepic = os.environ['LYGOS_DATA_PATH'] + '/data/epic_1b_20221020180856.png'
         print('Reading from %s...' % pathepic)
         gdat.imagepic = np.mean(imageio.imread(pathepic).astype(float), 2)
@@ -2283,7 +2310,7 @@ def init( \
         #axis.set_ylabel('%s' % strgyaxi)
         #axis.set_xlabel(gdat.labltime)
         axis.set_yscale('log')
-        path = gdat.pathimagtarg + 'histepic.%s' % (gdat.typefileplot)
+        path = gdat.pathvisutarg + 'histepic.%s' % (gdat.typefileplot)
         print('Writing to %s...' % path)
         plt.savefig(path)
         plt.close()
@@ -2370,7 +2397,6 @@ def init( \
                     else:
                         gdat.listtime[p][o] = 2458119.5 + np.arange(0., 1. / 24., gdat.timeexpo[p][o])
                 
-            
             # load the list of WCS objects for each pointing
             if (gdat.typedata == 'simuinje' or gdat.typedata == 'obsd' or gdat.typedata == 'simuskyy') and \
                                                  (gdat.booltesspast or gdat.liststrginst[p] == 'LSST'):
@@ -2385,7 +2411,17 @@ def init( \
                     gdat.listhdundata[p][o] = gdat.listhdundataffim[p][np.where(gdat.listipnt[p][o] == gdat.listipntffim[p])[0][0]]
                 
                 if gdat.booldiag:
+                    
+                    if len(gdat.listhdundata[p][o]) == 0:
+                        print('')
+                        print('')
+                        print('')
+                        raise Exception('')
+                    
                     if isinstance(gdat.listhdundata[p][o], np.ndarray):
+                        print('')
+                        print('')
+                        print('')
                         raise Exception('')
 
                 gdat.listobjtwcss[p][o] = astropy.wcs.WCS(gdat.listhdundata[p][o][2].header)
@@ -2551,13 +2587,12 @@ def init( \
                         if gdat.cntpdata.shape[2] != len(gdat.listtime[p][o]):
                             print('')
                             print('')
-                            print('Time dimension of the count map read from disk does not match that of the time array.')
+                            print('')
                             print('gdat.numbtime[p][o]')
                             print(gdat.numbtime[p][o])
                             print('gdat.cntpdata')
                             summgene(gdat.cntpdata)
-                            print('')
-                            raise Exception('')
+                            raise Exception('Time dimension of the count map read from disk does not match that of the time array.')
                                 
 
             if gdat.typedata == 'simuinje' or gdat.typedata == 'obsd':
@@ -2566,6 +2601,19 @@ def init( \
                 ## read the FITS files
                 #print(gdat.listhdundata[p][o][1].data.names)
                 # times
+                if gdat.booldiag:
+                    if len(gdat.listhdundata[p][o]) == 0:
+                        print('')
+                        print('')
+                        print('')
+                        print('po')
+                        print(p, o)
+                        print('gdat.typedata')
+                        print(gdat.typedata)
+                        print('gdat.listhdundata[p][o]')
+                        summgene(gdat.listhdundata[p][o])
+                        raise Exception('gdat.listhdundata[p][o] is empty.')
+                    
                 gdat.listtime[p][o] = gdat.listhdundata[p][o][1].data['TIME'] + 2457000
                 
                 # quality flag
@@ -2615,12 +2663,14 @@ def init( \
 
             if gdat.booldiag:
                 if gdat.cntpdata.shape[2] != gdat.numbtime[p][o]:
+                    print('')
+                    print('')
+                    print('')
                     print('gdat.numbtime[p][o]')
                     print(gdat.numbtime[p][o])
                     print('gdat.cntpdata')
                     summgene(gdat.cntpdata)
-                    print('')
-                    raise Exception('')
+                    raise Exception('Last dimension of cntpdata should be same as gdat.numbtime[p][o].')
                                 
             gdat.indxside = np.arange(gdat.numbside[p])
 
@@ -2667,12 +2717,14 @@ def init( \
 
             if gdat.booldiag:
                 if gdat.cntpdata.shape[2] != gdat.numbtime[p][o]:
+                    print('')
+                    print('')
+                    print('')
                     print('gdat.numbtime[p][o]')
                     print(gdat.numbtime[p][o])
                     print('gdat.cntpdata')
                     summgene(gdat.cntpdata)
-                    print('')
-                    raise Exception('')
+                    raise Exception('Last dimension of cntpdata should be same as gdat.numbtime[p][o].')
                                 
             gdat.cntpdatasexp = gdat.cntpdata[:, :, 0]
         
@@ -2705,14 +2757,19 @@ def init( \
 
             if gdat.booldiag:
                 if gdat.cntpdata.shape[2] != gdat.numbtime[p][o]:
+                    print('')
+                    print('')
+                    print('')
                     print('gdat.cntpdata')
                     summgene(gdat.cntpdata)
-                    print('')
-                    raise Exception('')
+                    raise Exception('Last dimension of cntpdata should be same as gdat.numbtime[p][o].')
                                 
             if gdat.booldiag:
                 if gdat.cntpdatatmed.shape[0] != gdat.numbside[p]:
-                    raise Exception('')
+                    print('')
+                    print('')
+                    print('')
+                    raise Exception('First dimension of cntpdatatmed should be same as numbside[p].')
             
             #if not np.isfinite(gdat.cntpdatatmed).all():
             #    raise Exception('')
@@ -2721,7 +2778,7 @@ def init( \
             if gdat.boolplotcntp:
                 strgtitl = gdat.strgtitlcntpplot
                 for typecntpscal in gdat.listtypecntpscal:
-                    plot_cntp(gdat, gdat.cntpdatasexp, p, o, typecntpscal, gdat.pathimagtargsexp, 'cntpdatasexp_nopm', 'refr', strgtitl=strgtitl)
+                    plot_cntp(gdat, gdat.cntpdatasexp, p, o, typecntpscal, gdat.pathvisutargsexp, 'cntpdatasexp_nopm', 'refr', strgtitl=strgtitl)
                 
             if gdat.typedata != 'simutoyy':
                 
@@ -2844,7 +2901,7 @@ def init( \
                         axis.plot(gdat.listtime[p][o] - gdat.timeoffs, temp, ls='', marker='.', ms=1)
                         axis.set_ylabel('%s' % strgyaxi)
                         axis.set_xlabel(gdat.labltime)
-                        path = gdat.pathimagtarg + '%s_%s_%02d.%s' % (strgplot, strgchun, k, gdat.typefileplot)
+                        path = gdat.pathvisutarg + '%s_%s_%02d.%s' % (strgplot, strgchun, k, gdat.typefileplot)
                         print('Writing to %s...' % path)
                         plt.savefig(path)
                         plt.close()
@@ -2858,7 +2915,7 @@ def init( \
                     pathquatbase = gdat.pathdatalygo + 'quat/'
                     listfile = fnmatch.filter(os.listdir(pathquatbase), 'tess*_sector%02d-quat.fits' % gdat.listipnt[p][o])
                     if len(listfile) > 0:
-                        path = gdat.pathimagtarg + 'tserquat_sc%02d.%s' % (gdat.listipnt[p][o], gdat.typefileplot)
+                        path = gdat.pathvisutarg + 'tserquat_sc%02d.%s' % (gdat.listipnt[p][o], gdat.typefileplot)
                         if not os.path.exists(path):
                             pathquat = pathquatbase + listfile[0]
                             listhdun = astropy.io.fits.open(pathquat)
@@ -3038,10 +3095,12 @@ def init( \
 
             if gdat.booldiag:
                 if gdat.cntpdata.shape[2] != gdat.numbtime[p][o]:
+                    print('')
+                    print('')
+                    print('')
                     print('gdat.cntpdata')
                     summgene(gdat.cntpdata)
-                    print('')
-                    raise Exception('')
+                    raise Exception('Last dimension of cntpdata should be same as gdat.numbtime[p][o].')
                                 
             if gdat.cntpdata.shape[1] != gdat.numbside[p]:
                 raise Exception('')
@@ -3072,6 +3131,9 @@ def init( \
             if gdat.booldiag:
                 for e, nameanls in enumerate(gdat.listnameanls):
                     if len(gdat.fitt.catl['labl']) != gdat.fitt.numbpnts[e]:
+                        print('')
+                        print('')
+                        print('')
                         print('gdat.fitt.catl[labl]')
                         print(gdat.fitt.catl['labl'])
                         print('gdat.fitt.numbpnts')
@@ -3082,8 +3144,7 @@ def init( \
                         print(gdat.fitt.numbcomp)
                         print('gdat.listnameanls')
                         print(gdat.listnameanls)
-                        print('')
-                        raise Exception('')
+                        raise Exception('lenght of gdat.fitt.catl[labl] should be same as gdat.fitt.numbpnts[e].')
 
             for strgmodl in gdat.liststrgmodl:
                 gmod = getattr(gdat, strgmodl)
@@ -3110,7 +3171,7 @@ def init( \
                 
                 strgextn = 'psfn_%s_%s' % (strgchun, gdat.fitt.typepsfnshap)
                
-                path = gdat.pathimagtargsexp + 'parapmed_%s.csv' % strgextn
+                path = gdat.pathvisutargsexp + 'parapmed_%s.csv' % strgextn
                 if not os.path.exists(path):
                     
                     print('Modeling the data with a floating PSF...')
@@ -3243,7 +3304,7 @@ def init( \
                                                 dictlablscalparaderi=dictlablscalparaderi, \
                                                 numbsampburnwalk=numbsampburnwalk, \
                                                 boolforcrepr=boolforcrepr, \
-                                                pathbase=gdat.pathimagtargsexp, strgextn=strgextn, \
+                                                pathbase=gdat.pathvisutargsexp, strgextn=strgextn, \
                                                 #typefileplot=typefileplot, \
                                                 )
                     
@@ -3257,10 +3318,10 @@ def init( \
                             strgtitl = gdat.strgtitlcntpplot
                             boolresi = namevarb == 'cntpresisexp'
                             for typecntpscal in gdat.listtypecntpscal:
-                                plot_cntp(gdat, np.median(dictsamp[namevarb], 0), p, o, typecntpscal, gdat.pathimagtargsexp, namevarb + gdat.strgsavepsfn,
+                                plot_cntp(gdat, np.median(dictsamp[namevarb], 0), p, o, typecntpscal, gdat.pathvisutargsexp, namevarb + gdat.strgsavepsfn,
                                                                                                                  'fitt', strgtitl=strgtitl, boolresi=boolresi)
                         for typecntpscal in gdat.listtypecntpscal:
-                            plot_cntp(gdat, gdat.cntpdatasexp, p, o, typecntpscal, gdat.pathimagtargsexp, 'cntpdatasexp_' + gdat.strgsavepsfn, \
+                            plot_cntp(gdat, gdat.cntpdatasexp, p, o, typecntpscal, gdat.pathvisutargsexp, 'cntpdatasexp_' + gdat.strgsavepsfn, \
                                                                                                                   'fitt', strgtitl=gdat.strgtitlcntpplot)
                 
                     dictpmed = dict()
@@ -3333,11 +3394,11 @@ def init( \
             if gdat.boolplotcntp:
                 for typecntpscal in gdat.listtypecntpscal:
                     strgtitl = gdat.strgtitlcntpplot
-                    plot_cntp(gdat, gdat.cntpdatasexp, p, o, typecntpscal, gdat.pathimagtargsexp, 'cntpdatasexp', 'refr', strgtitl=strgtitl)
+                    plot_cntp(gdat, gdat.cntpdatasexp, p, o, typecntpscal, gdat.pathvisutargsexp, 'cntpdatasexp', 'refr', strgtitl=strgtitl)
             
             # plot a histogram of data counts
             if gdat.boolplothhistcntp:
-                plot_histcntp(gdat, gdat.cntpdata, gdat.pathimagtarg, 'cntpdata', gdat.strgsave) 
+                plot_histcntp(gdat, gdat.cntpdata, gdat.pathvisutarg, 'cntpdata', gdat.strgsave) 
             
             for e in gdat.indxanls:
                 gdat.listnois[p][o][e] = np.zeros((gdat.numboffs, gdat.numboffs))
@@ -3385,20 +3446,22 @@ def init( \
                                 
                                 if gdat.booldiag:
                                     if gdat.cntpdata.shape[2] != gdat.numbtime[p][o]:
+                                        print('')
+                                        print('')
+                                        print('')
                                         print('gdat.cntpdata')
                                         summgene(gdat.cntpdata)
-                                        print('')
-                                        raise Exception('')
+                                        raise Exception('Last dimension of cntpdata should be same as gdat.numbtime[p][o].')
                                 
                                 gdat.cntpdataflat = gdat.cntpdata.reshape((-1, gdat.numbtime[p][o]))
                                 gdat.variflat = gdat.vari.reshape((-1, gdat.numbtime[p][o]))
-                                print('gdat.cntpdataflat')
-                                summgene(gdat.cntpdataflat)
                                 gdat.indxpixlnzer = np.where((gdat.cntpdataflat != 0).all(axis=1))[0]
                                 
                                 gdat.covafittcnts = np.empty((gdat.numbtime[p][o], gdat.fitt.numbpnts[e] + 1, gdat.fitt.numbpnts[e] + 1))
-                                        
-                                print('Solving for the best-fit raw light curves of the sources...')
+                                
+                                if gdat.typeverb > 1:
+                                    print('Solving for the best-fit raw light curves of the sources...')
+                                
                                 # solve the linear system
                                 matrdesi = np.ones((gdat.indxpixlnzer.size, gdat.fitt.numbpnts[e] + 1))
                                 
@@ -3522,9 +3585,6 @@ def init( \
                             arry = np.empty((gdat.medifittcnts.size, 2), dtype=object)
                             arry[:, 0] = gdat.fitt.catl['labl']
                             arry[:, 1] = gdat.medifittcnts
-                            print('arry')
-                            summgene(arry)
-                            print(arry)
                             np.savetxt(pathsavemeta, arry, delimiter=',', header='Target,Temporal median counts for each component', fmt="%s %.3g")
                                 
                             if gdat.fitt.typepsfnshap != 'data':
@@ -3560,7 +3620,7 @@ def init( \
                             
                                 # plot a histogram of data counts
                                 if gdat.boolplothhistcntp:
-                                    plot_histcntp(gdat, gdat.cntpresi, gdat.pathimagtarg, 'cntpresi')
+                                    plot_histcntp(gdat, gdat.cntpresi, gdat.pathvisutarg, 'cntpresi')
                     
                                 if gdat.boolplotcntp:
                                     for typeplotcntp in listtypeplotcntp:
@@ -3569,7 +3629,7 @@ def init( \
                                             
                                             # make animation plot
                                             if typeplotcntp == 'anim':
-                                                pathanim = retr_pathvisu(gdat, gdat.pathimagtarg, nameplotcntp, gdat.strgsave, typevisu='anim')
+                                                pathanim = retr_pathvisu(gdat, gdat.pathvisutarg, nameplotcntp, gdat.strgsave, typevisu='anim')
                                                 if os.path.exists(pathanim):
                                                     continue
 
@@ -3611,7 +3671,7 @@ def init( \
                                                         print('')
                                                         print('')
                                                         print('')
-                                                        plot_cntp(gdat, cntptemp, p, o, typecntpscal, gdat.pathimagtarg, \
+                                                        plot_cntp(gdat, cntptemp, p, o, typecntpscal, gdat.pathvisutarg, \
                                                                                                         nameplotcntp + strg, gdat.strgsave, typecatlplot, \
                                                                                                                                    xposoffs=gdat.listoffsposi[x], \
                                                                                                                                    yposoffs=gdat.listoffsposi[y], \
@@ -3673,7 +3733,7 @@ def init( \
                             arryrflxrbn = np.copy(gdat.fitt.arrytser[p][o][e][x][y][:, :, 0])
                             arryrflxrbn[:, 1] = gdat.fitt.arrytser[p][o][e][x][y][:, 1, 0] - \
                                                             scipy.ndimage.median_filter(gdat.fitt.arrytser[p][o][e][x][y][:, 1, 0], size=50)
-                            arryrflxrbn = ephesos.rebn_tser(arryrflxrbn, delt=1. / 24.)
+                            arryrflxrbn = miletos.rebn_tser(arryrflxrbn, delt=1. / 24.)
                             gdat.listnois[p][o][e][x, y] = 1e6 * np.nanstd(arryrflxrbn[:, 1]) / np.median(gdat.fitt.arrytser[p][o][e][x][y][:, 1, 0])
                     
                         if gdat.booldiag:
@@ -3726,7 +3786,7 @@ def init( \
                                     
                             # plot light curves of all (of the first quality cut) sources together
                             nameplot = 'tser%ssour' % gdat.strgnorm
-                            path = retr_pathvisu(gdat, gdat.pathimagtarg, nameplot)
+                            path = retr_pathvisu(gdat, gdat.pathvisutarg, nameplot)
                             if not os.path.exists(path):
                                 figr, axis = plt.subplots(gdat.fitt.numbcomp[e], 1, \
                                                                 figsize=(2 * gdat.sizefigrside, 0.6 * gdat.fitt.numbcomp[e] * gdat.sizefigrside), sharex=True)
