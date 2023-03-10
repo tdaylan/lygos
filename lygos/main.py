@@ -1803,6 +1803,10 @@ def init( \
             gdat.listtcam = np.array(gdat.listtcam)
             gdat.listtccd = np.array(gdat.listtccd)
                 
+    for p in gdat.indxinst:
+        if isinstance(gdat.listipnt[p], list):
+            gdat.listipnt[p] = np.array(gdat.listipnt[p], dtype=int)
+
     # number of pointings
     gdat.numbpoin = np.ones(gdat.numbinst, dtype=int)
     for p in gdat.indxinst:
@@ -1810,10 +1814,6 @@ def init( \
         print(gdat.listipnt[p])
         gdat.numbpoin[p] = gdat.listipnt[p].size
     
-    for p in gdat.indxinst:
-        if isinstance(gdat.listipnt[p], list):
-            gdat.listipnt[p] = np.array(gdat.listipnt[p], dtype=int)
-
     if (gdat.numbpoin == 0).any():
         raise Exception('')
         
