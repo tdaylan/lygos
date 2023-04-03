@@ -26,7 +26,8 @@ import miletos
 import tdpy
 from tdpy.util import summgene
 
-import ephesos
+import nicomedia
+import miletos
 
 
 def retr_fluxfromtmag(tmag):
@@ -1061,7 +1062,8 @@ def init( \
 
     if gdat.numbside is None:
         gdat.boolinptnumbside = False
-        gdat.numbside = np.zeros(gdat.numbinst, dtype=int) + 11
+        gdat.numbsidedefa = 11
+        gdat.numbside = np.full(gdat.numbinst, gdat.numbsidedefa)
     else:
         gdat.boolinptnumbside = True
         
@@ -1184,7 +1186,7 @@ def init( \
         raise Exception('truetmagtarg needs to be set when simulated data based on a generative model, are generated.')
 
     if gdat.ticitarg is not None or gdat.toiitarg is not None:
-        dicttoii = ephesos.retr_dicttoii()
+        dicttoii = nicomedia.retr_dicttoii()
 
     # settings
     ## plotting
@@ -1580,228 +1582,254 @@ def init( \
     gdat.listtcamffim = [[] for p in gdat.indxinst]
     gdat.listtccdffim = [[] for p in gdat.indxinst]
     gdat.indxpoinffim = [[] for p in gdat.indxinst]
+    
+    booltessanyy = False
     for p in gdat.indxinst:
-        if gdat.liststrginst[p] == 'TESS' and not 'TESSCam' in gdat.liststrginst:
-            # get TESS FFI data via TESSCut, either using the stored HDU lists for each sector or online
-            gdat.pathdatatargtcut = gdat.pathdatatarg + 'TESSCut/'
-            if os.path.exists(gdat.pathdatatargtcut):
-                print('Looking for HDU files in %s...' % gdat.pathdatatargtcut)
-                listname = fnmatch.filter(os.listdir(gdat.pathdatatargtcut), 'ts*.fits')
-            
-            if not os.path.exists(gdat.pathdatatargtcut) or len(listname) == 0:
-                
-                os.system('mkdir -p %s' % gdat.pathdatatargtcut)
-                
-                #strgsrch = '%g %g' % (gdat.rasctarg, gdat.decltarg)
-                #print('Calling TESSCut at %s with size %d to get the data...' % (strgsrch, gdat.numbside[p]))
-                #listhdundatatemp = astroquery.mast.Tesscut.get_cutouts(coordinates=strgsrch, size=gdat.numbside[p])
+        if gdat.liststrginst[p].startswith('TESS') and gdat.liststrginst[p] != 'TESSCam':
+            booltessanyy = True
 
-                timeinit = timemodu.time()
-
-                print('')
-                print('Will download the data via wget, unzip, and read the files...')
-                
-                strgfile = 'astrocut?ra=%.6f&dec=%.6f&y=%d&x=%d' % (gdat.rasctarg, gdat.decltarg, gdat.numbside[p], gdat.numbside[p])
-                pathastr = os.environ['LYGOS_DATA_PATH'] + '/data/tesscutttemp/'
-                strgfileastrzipp = '%sastrocut_%s.zip' % (pathastr, strgfile)
-                
-                cmnd = 'wget "https://mast.stsci.edu/tesscut/api/v0.1/%s" -O "%s"' % (strgfile, strgfileastrzipp)
-                print(cmnd)
-                os.system(cmnd)
-                
-                cmnd = 'tar -zxvf "%s" -C %s' % (strgfileastrzipp, pathastr)
-                print(cmnd)
-                os.system(cmnd)
-                
-                strgkeyy = "tess-s*_%.6f_%.6f_%dx%d_astrocut.fits" % (gdat.rasctarg, gdat.decltarg, gdat.numbside[p], gdat.numbside[p])
-                liststrgfile = fnmatch.filter(os.listdir(pathastr), strgkeyy)
-                
-                listhdundatatemp = []
-                for strgfile in liststrgfile:
-                    path = pathastr + strgfile
-                    print('Reading from %s...' % path)
-                    listhdundatatemp.append(astropy.io.fits.open(path))
-                
-                #for oo in range(len(listhdundatatemp)):
-                    #path = gdat.pathdatatargtcut + 'ts%02d.fits' % listhdundatatemp[oo][0].header['SECTOR']
-                    #astropy.io.fits.HDUList(listhdundatatemp[oo]).writeto(path)
-                
-                timefinl = timemodu.time()
-                #print('Called TESSCut in %g seconds.' % (timefinl - timeinit))
-                print('Grabbed the data in %g seconds.' % (timefinl - timeinit))
-                                
-            else:
-                listhdundatatemp = []
-                for name in listname:
-                    path = gdat.pathdatatargtcut + name
-                    print('Reading from %s...' % path)
-                    listhdundatatemp.append(astropy.io.fits.open(path))
+    if booltessanyy:
+        # get TESS FFI data via TESSCut, either using the stored HDU lists for each sector or online
+        gdat.pathdatatargtcut = gdat.pathdatatarg + 'TESSCut/'
+        if os.path.exists(gdat.pathdatatargtcut):
+            print('Looking for HDU files in %s...' % gdat.pathdatatargtcut)
+            listname = fnmatch.filter(os.listdir(gdat.pathdatatargtcut), 'ts*.fits')
+        
+        if not os.path.exists(gdat.pathdatatargtcut) or len(listname) == 0:
             
-            gdat.numbpoinffim[p] = len(listhdundatatemp)
-            gdat.indxpoinffim[p] = np.arange(gdat.numbpoinffim[p])
-            gdat.listipntffim[p] = [[] for o in gdat.indxpoinffim[p]]
-            gdat.listtcamffim[p] = [[] for o in gdat.indxpoinffim[p]]
-            gdat.listtccdffim[p] = [[] for o in gdat.indxpoinffim[p]]
-            gdat.listhdundataffim[p] = [[] for o in gdat.indxpoinffim[p]]
-            for o, hdundata in enumerate(listhdundatatemp):
-                gdat.listipntffim[p][o] = hdundata[0].header['SECTOR']
-                gdat.listtcamffim[p][o] = hdundata[0].header['CAMERA']
-                gdat.listtccdffim[p][o] = hdundata[0].header['CCD']
-                gdat.listhdundataffim[p][o] = hdundata
+            os.system('mkdir -p %s' % gdat.pathdatatargtcut)
             
-                if gdat.booldiag:
-                    if isinstance(gdat.listhdundataffim[p][o], np.ndarray):
-                        raise Exception('')
+            #strgsrch = '%g %g' % (gdat.rasctarg, gdat.decltarg)
+            #print('Calling TESSCut at %s with size %d to get the data...' % (strgsrch, gdat.numbside[p]))
+            #listhdundatatemp = astroquery.mast.Tesscut.get_cutouts(coordinates=strgsrch, size=gdat.numbside[p])
+
+            timeinit = timemodu.time()
+
+            print('')
+            print('Will download the data via wget, unzip, and read the files...')
             
-            # sort the poiting ID, Camera, CCD, and HDU lists according to pointing ID
-            ## get an array holding the indices that would sort
-            indxsort = np.argsort(np.array(gdat.listipntffim[p]))
-            ## copy the lists to temporary variables
-            gdat.listipntffimtemp = list(gdat.listipntffim[p])
-            gdat.listtcamffimtemp = list(gdat.listtcamffim[p])
-            gdat.listtccdffimtemp = list(gdat.listtccdffim[p])
-            gdat.listhdundataffimtemp = list(gdat.listhdundataffim[p])
-            ## write onto the lists with the sorted order 
-            for kk, indxtemp in enumerate(indxsort):
-                gdat.listipntffim[p][kk] = gdat.listipntffimtemp[indxtemp]
-                gdat.listtcamffim[p][kk] = gdat.listtcamffimtemp[indxtemp]
-                gdat.listtccdffim[p][kk] = gdat.listtccdffimtemp[indxtemp]
-                gdat.listhdundataffim[p][kk] = gdat.listhdundataffimtemp[indxtemp]
-
-            print('gdat.listipntffim')
-            print(gdat.listipntffim)
-            print('gdat.listtcamffim')
-            print(gdat.listtcamffim)
-            print('gdat.listtccdffim')
-            print(gdat.listtccdffim)
+            strgfile = 'astrocut?ra=%.6f&dec=%.6f&y=%d&x=%d' % (gdat.rasctarg, gdat.decltarg, gdat.numbsidedefa, gdat.numbsidedefa)
+            pathastr = os.environ['LYGOS_DATA_PATH'] + '/data/tesscutttemp/'
+            strgfileastrzipp = '%sastrocut_%s.zip' % (pathastr, strgfile)
             
-            gdat.listipntspoc = []
-            gdat.listtcamspoc = []
-            gdat.listtccdspoc = []
-            print('booltpxflygo')
-            print(booltpxflygo)
-            if booltpxflygo:
-                
-                # get the list of sectors for which TPF data are available
-                print('Retrieving the list of available TESS sectors for which there are TPF data...')
-                # get observation tables
-                listtablobsv = ephesos.retr_listtablobsv(gdat.strgmast)
-                listprodspoc = []
-                for k, tablobsv in enumerate(listtablobsv):
-                    
-                    listprodspoctemp = astroquery.mast.Observations.get_product_list(tablobsv)
-                    
-                    if listtablobsv['distance'][k] > 0:
-                        continue
-
-                    strgdesc = ['Target pixel files', 'Light curves']
-                    listprodspoctemp = astroquery.mast.Observations.filter_products(listprodspoctemp, description=strgdesc)
-                    for a in range(len(listprodspoctemp)):
-                        boolfasttemp = listprodspoctemp[a]['obs_id'].endswith('fast')
-                        boolgood = boolfasttemp == gdat.boolfasttpxf
-
-                        if boolgood and listprodspoctemp[a]['description'] == 'Target pixel files':
-                            tsec = int(listprodspoctemp[a]['obs_id'].split('-')[1][1:])
-                            gdat.listipntspoc.append(tsec) 
+            cmnd = 'wget "https://mast.stsci.edu/tesscut/api/v0.1/%s" -O "%s"' % (strgfile, strgfileastrzipp)
+            print(cmnd)
+            os.system(cmnd)
+            
+            cmnd = 'tar -zxvf "%s" -C %s' % (strgfileastrzipp, pathastr)
+            print(cmnd)
+            os.system(cmnd)
+            
+            strgkeyy = "tess-s*_%.6f_%.6f_%dx%d_astrocut.fits" % (gdat.rasctarg, gdat.decltarg, gdat.numbsidedefa, gdat.numbsidedefa)
+            liststrgfile = fnmatch.filter(os.listdir(pathastr), strgkeyy)
+            
+            listhdundatatemp = []
+            for strgfile in liststrgfile:
+                path = pathastr + strgfile
+                print('Reading from %s...' % path)
+                listhdundatatemp.append(astropy.io.fits.open(path))
+            
+            #for oo in range(len(listhdundatatemp)):
+                #path = gdat.pathdatatargtcut + 'ts%02d.fits' % listhdundatatemp[oo][0].header['SECTOR']
+                #astropy.io.fits.HDUList(listhdundatatemp[oo]).writeto(path)
+            
+            timefinl = timemodu.time()
+            #print('Called TESSCut in %g seconds.' % (timefinl - timeinit))
+            print('Grabbed the data in %g seconds.' % (timefinl - timeinit))
                             
-                            print('temp: assigning dummy Cam and CCD to the target for this sector.')
-                            gdat.listtcamspoc.append(-1) 
-                            gdat.listtccdspoc.append(-1) 
-                            
-                            listprodspoc.append(listprodspoctemp)
-                
-                gdat.listipntspoc = np.array(gdat.listipntspoc, dtype=int)
-                gdat.listtcamspoc = np.array(gdat.listtcamspoc, dtype=int)
-                gdat.listtccdspoc = np.array(gdat.listtccdspoc, dtype=int)
-                
-                indx = np.argsort(gdat.listipntspoc)
-                gdat.listipntspoc = gdat.listipntspoc[indx]
-                gdat.listtcamspoc = gdat.listtcamspoc[indx]
-                gdat.listtccdspoc = gdat.listtccdspoc[indx]
-                
-                gdat.numbpoinspoc = gdat.listipntspoc.size
+        else:
+            listhdundatatemp = []
+            for name in listname:
+                path = gdat.pathdatatargtcut + name
+                print('Reading from %s...' % path)
+                listhdundatatemp.append(astropy.io.fits.open(path))
+        
+        gdat.numbpoinffim[p] = len(listhdundatatemp)
+        gdat.indxpoinffim[p] = np.arange(gdat.numbpoinffim[p])
+        gdat.listipntffim[p] = [[] for o in gdat.indxpoinffim[p]]
+        gdat.listtcamffim[p] = [[] for o in gdat.indxpoinffim[p]]
+        gdat.listtccdffim[p] = [[] for o in gdat.indxpoinffim[p]]
+        gdat.listhdundataffim[p] = [[] for o in gdat.indxpoinffim[p]]
+        for o, hdundata in enumerate(listhdundatatemp):
+            gdat.listipntffim[p][o] = hdundata[0].header['SECTOR']
+            gdat.listtcamffim[p][o] = hdundata[0].header['CAMERA']
+            gdat.listtccdffim[p][o] = hdundata[0].header['CCD']
+            gdat.listhdundataffim[p][o] = hdundata
+        
+            if gdat.booldiag:
+                if isinstance(gdat.listhdundataffim[p][o], np.ndarray):
+                    raise Exception('')
+        
+        # sort the poiting ID, Camera, CCD, and HDU lists according to pointing ID
+        ## get an array holding the indices that would sort
+        indxsort = np.argsort(np.array(gdat.listipntffim[p]))
+        ## copy the lists to temporary variables
+        gdat.listipntffimtemp = list(gdat.listipntffim[p])
+        gdat.listtcamffimtemp = list(gdat.listtcamffim[p])
+        gdat.listtccdffimtemp = list(gdat.listtccdffim[p])
+        gdat.listhdundataffimtemp = list(gdat.listhdundataffim[p])
+        ## write onto the lists with the sorted order 
+        for kk, indxtemp in enumerate(indxsort):
+            gdat.listipntffim[p][kk] = gdat.listipntffimtemp[indxtemp]
+            gdat.listtcamffim[p][kk] = gdat.listtcamffimtemp[indxtemp]
+            gdat.listtccdffim[p][kk] = gdat.listtccdffimtemp[indxtemp]
+            gdat.listhdundataffim[p][kk] = gdat.listhdundataffimtemp[indxtemp]
 
-            if len(gdat.listipntspoc) > 0:
-                gdat.indxtsecspoc = np.arange(gdat.numbpoinspoc)
-                
-                # download data from MAST
-                os.system('mkdir -p %s' % gdat.pathdatatarg)
+        print('gdat.listipntffim')
+        print(gdat.listipntffim)
+        print('gdat.listtcamffim')
+        print(gdat.listtcamffim)
+        print('gdat.listtccdffim')
+        print(gdat.listtccdffim)
+        
+        gdat.listipntspoc = []
+        gdat.listtcamspoc = []
+        gdat.listtccdspoc = []
+        print('booltpxflygo')
+        print(booltpxflygo)
+        if booltpxflygo:
             
-                print('Downloading SPOC data products...')
+            # get the list of sectors for which TPF data are available
+            print('Retrieving the list of available TESS sectors for which there are TPF data...')
+            # get observation tables
+            listtablobsv = nicomedia.retr_listtablobsv(gdat.strgmast)
+            listprodspoc = []
+            for k, tablobsv in enumerate(listtablobsv):
                 
-                listpathdownspoc = []
+                listprodspoctemp = astroquery.mast.Observations.get_product_list(tablobsv)
+                
+                if listtablobsv['distance'][k] > 0:
+                    continue
 
-                listpathdownspoclcur = []
-                listpathdownspoctpxf = []
-                for k in range(len(listprodspoc)):
-                    manifest = astroquery.mast.Observations.download_products(listprodspoc[k], download_dir=gdat.pathdatatarg)
-                    listpathdownspoclcur.append(manifest['Local Path'][0])
-                    listpathdownspoctpxf.append(manifest['Local Path'][1])
+                strgdesc = ['Target pixel files', 'Light curves']
+                listprodspoctemp = astroquery.mast.Observations.filter_products(listprodspoctemp, description=strgdesc)
+                for a in range(len(listprodspoctemp)):
+                    boolfasttemp = listprodspoctemp[a]['obs_id'].endswith('fast')
+                    boolgood = boolfasttemp == gdat.boolfasttpxf
 
-                ## make sure the list of paths to sector files are time-sorted
-                listpathdownspoc.sort()
-                listpathdownspoclcur.sort()
-                listpathdownspoctpxf.sort()
-                
-                ## read SPOC TPFs
-                gdat.listhdundataspoc = [[] for o in gdat.indxtsecspoc]
-                gdat.indxtimegoodspoc = [[] for o in gdat.indxtsecspoc]
-                for oo in gdat.indxtsecspoc:
-                    gdat.listhdundataspoc[oo], gdat.indxtimegoodspoc[oo], gdat.listipntspoc[oo], gdat.listtcamspoc[oo], \
-                                                                    gdat.listtccdspoc[oo] = ephesos.read_tesskplr_file(listpathdownspoctpxf[oo])
-                    if not np.isfinite(gdat.listhdundataspoc[oo][1].data['TIME'][gdat.indxtimegoodspoc[oo]]).all():
-                        raise Exception('')
-                
-                print('gdat.listipntspoc')
-                print(gdat.listipntspoc)
-                print('gdat.listtcamspoc')
-                print(gdat.listtcamspoc)
-                print('gdat.listtccdspoc')
-                print(gdat.listtccdspoc)
+                    if boolgood and listprodspoctemp[a]['description'] == 'Target pixel files':
+                        tsec = int(listprodspoctemp[a]['obs_id'].split('-')[1][1:])
+                        gdat.listipntspoc.append(tsec) 
+                        
+                        print('temp: assigning dummy Cam and CCD to the target for this sector.')
+                        gdat.listtcamspoc.append(-1) 
+                        gdat.listtccdspoc.append(-1) 
+                        
+                        listprodspoc.append(listprodspoctemp)
             
-            # merge SPOC TPF and FFI sector lists
-            gdat.listtcam = []
-            gdat.listtccd = []
+            gdat.listipntspoc = np.array(gdat.listipntspoc, dtype=int)
+            gdat.listtcamspoc = np.array(gdat.listtcamspoc, dtype=int)
+            gdat.listtccdspoc = np.array(gdat.listtccdspoc, dtype=int)
             
-            gdat.listipntffim[p] = np.array(gdat.listipntffim[p], dtype=int)
-            print('gdat.listipntffim[p]')
-            print(gdat.listipntffim[p])
+            indx = np.argsort(gdat.listipntspoc)
+            gdat.listipntspoc = gdat.listipntspoc[indx]
+            gdat.listtcamspoc = gdat.listtcamspoc[indx]
+            gdat.listtccdspoc = gdat.listtccdspoc[indx]
+            
+            gdat.numbpoinspoc = gdat.listipntspoc.size
+
+        if len(gdat.listipntspoc) > 0:
+            gdat.indxtsecspoc = np.arange(gdat.numbpoinspoc)
+            
+            # download data from MAST
+            os.system('mkdir -p %s' % gdat.pathdatatarg)
+        
+            print('Downloading SPOC data products...')
+            
+            listpathdownspoc = []
+
+            listpathdownspoclcur = []
+            listpathdownspoctpxf = []
+            for k in range(len(listprodspoc)):
+                manifest = astroquery.mast.Observations.download_products(listprodspoc[k], download_dir=gdat.pathdatatarg)
+                listpathdownspoclcur.append(manifest['Local Path'][0])
+                listpathdownspoctpxf.append(manifest['Local Path'][1])
+
+            ## make sure the list of paths to sector files are time-sorted
+            listpathdownspoc.sort()
+            listpathdownspoclcur.sort()
+            listpathdownspoctpxf.sort()
+            
+            ## read SPOC TPFs
+            gdat.listhdundataspoc = [[] for o in gdat.indxtsecspoc]
+            gdat.indxtimegoodspoc = [[] for o in gdat.indxtsecspoc]
+            for oo in gdat.indxtsecspoc:
+                gdat.listhdundataspoc[oo], gdat.indxtimegoodspoc[oo], gdat.listipntspoc[oo], gdat.listtcamspoc[oo], \
+                                                                gdat.listtccdspoc[oo] = miletos.read_tesskplr_file(listpathdownspoctpxf[oo])
+                if not np.isfinite(gdat.listhdundataspoc[oo][1].data['TIME'][gdat.indxtimegoodspoc[oo]]).all():
+                    raise Exception('')
+            
             print('gdat.listipntspoc')
             print(gdat.listipntspoc)
-            if len(gdat.listipntspoc) == 0:
-                gdat.listipntconc = gdat.listipntffim[p]
+            print('gdat.listtcamspoc')
+            print(gdat.listtcamspoc)
+            print('gdat.listtccdspoc')
+            print(gdat.listtccdspoc)
+        
+        # merge SPOC TPF and FFI sector lists
+        gdat.listtcam = []
+        gdat.listtccd = []
+        
+        gdat.listipntffim[p] = np.array(gdat.listipntffim[p], dtype=int)
+        
+        print('')
+        print('')
+        print('')
+        print('')
+        print('')
+        print('')
+        print('')
+        print('')
+        print('')
+        print('')
+        print('')
+        print('')
+        print('p')
+        print(p)
+        print('gdat.listipntffim[p]')
+        print(gdat.listipntffim[p])
+        print('gdat.listipntspoc')
+        print(gdat.listipntspoc)
+        if len(gdat.listipntspoc) == 0:
+            gdat.listipntconc = gdat.listipntffim[p]
+        else:
+            gdat.listipntconc = np.unique(np.concatenate((gdat.listipntffim[p], gdat.listipntspoc), dtype=int))
+        print('gdat.listipntconc')
+        print(gdat.listipntconc)
+        
+        if gdat.listipntsele is not None:
+            print('Taking only selected sectors...')
+            print('gdat.listipntsele')
+            print(gdat.listipntsele)
+            gdat.listipntconc = [tsec for tsec in gdat.listipntconc if tsec in gdat.listipntsele]
+        
+        print('gdat.listipnt')
+        print(gdat.listipnt)
+        print('gdat.listipntconc')
+        print(gdat.listipntconc)
+        
+        for k in range(len(gdat.listipntconc)):
+            indx = np.where(gdat.listipntspoc == gdat.listipntconc[k])[0]
+            if indx.size > 0:
+                gdat.listipnt[gdat.dictindxinst['TESS']].append(gdat.listipntspoc[indx[0]])
+                gdat.listtcam.append(gdat.listtcamspoc[indx[0]])
+                gdat.listtccd.append(gdat.listtccdspoc[indx[0]])
             else:
-                gdat.listipntconc = np.unique(np.concatenate((gdat.listipntffim[p], gdat.listipntspoc), dtype=int))
-            
-            if gdat.listipntsele is not None:
-                gdat.listipntconc = [tsec for tsec in gdat.listipntconc if tsec in gdat.listipntsele]
-            
-            for k in range(len(gdat.listipntconc)):
-                indx = np.where(gdat.listipntspoc == gdat.listipntconc[k])[0]
-                if indx.size > 0:
-                    gdat.listipnt[gdat.dictindxinst['TESS']].append(gdat.listipntspoc[indx[0]])
-                    gdat.listtcam.append(gdat.listtcamspoc[indx[0]])
-                    gdat.listtccd.append(gdat.listtccdspoc[indx[0]])
-                else:
-                    #print('gdat.listipntffim')
-                    #print(gdat.listipntffim)
-                    print('gdat.listipntffim[p]')
-                    print(gdat.listipntffim[p])
-                    summgene(gdat.listipntffim[p])
-                    #print('gdat.listipntconc')
-                    #print(gdat.listipntconc)
-                    print('gdat.listipntconc[k]')
-                    print(gdat.listipntconc[k])
-                    summgene(gdat.listipntconc[k])
-                    indx = np.where(gdat.listipntffim[p] == gdat.listipntconc[k])[0]
-                    print('indx')
-                    print(indx)
-                    gdat.listipnt[gdat.dictindxinst['TESS']].append(gdat.listipntffim[p][indx[0]])
-                    gdat.listtcam.append(gdat.listtcamffim[p][indx[0]])
-                    gdat.listtccd.append(gdat.listtccdffim[p][indx[0]])
-            gdat.listipnt[gdat.dictindxinst['TESS']] = np.array(gdat.listipnt[gdat.dictindxinst['TESS']])
-            gdat.listtcam = np.array(gdat.listtcam)
-            gdat.listtccd = np.array(gdat.listtccd)
+                indx = np.where(gdat.listipntffim[p] == gdat.listipntconc[k])[0]
+                gdat.listipnt[gdat.dictindxinst['TESS']].append(gdat.listipntffim[p][indx[0]])
+                gdat.listtcam.append(gdat.listtcamffim[p][indx[0]])
+                gdat.listtccd.append(gdat.listtccdffim[p][indx[0]])
+        
+        print('gdat.listipnt')
+        print(gdat.listipnt)
+        
+        gdat.listipnt[gdat.dictindxinst['TESS']] = np.array(gdat.listipnt[gdat.dictindxinst['TESS']])
+        
+        print('gdat.listipnt')
+        print(gdat.listipnt)
+        
+        gdat.listtcam = np.array(gdat.listtcam)
+        gdat.listtccd = np.array(gdat.listtccd)
                 
     for p in gdat.indxinst:
         if isinstance(gdat.listipnt[p], list):
@@ -1810,12 +1838,22 @@ def init( \
     # number of pointings
     gdat.numbpoin = np.ones(gdat.numbinst, dtype=int)
     for p in gdat.indxinst:
-        print('gdat.listipnt[p]')
-        print(gdat.listipnt[p])
         gdat.numbpoin[p] = gdat.listipnt[p].size
     
     if (gdat.numbpoin == 0).any():
-        raise Exception('')
+        print('')
+        print('')
+        print('')
+        for p in gdat.indxinst:
+            print('p')
+            print(p)
+            print('gdat.liststrginst[p]')
+            print(gdat.liststrginst[p])
+            print('gdat.listipnt[p]')
+            print(gdat.listipnt[p])
+        print('gdat.numbpoin')
+        print(gdat.numbpoin)
+        raise Exception('(gdat.numbpoin == 0).any()')
         
     gdat.indxtsec = [[] for p in gdat.indxinst]
     for p in gdat.indxinst:
@@ -1869,7 +1907,7 @@ def init( \
                     print('Will not be using TPFs since number of pixels along a side is not 11.')
                 else:
                     # determine whether sectors have TPFs
-                    gdat.booltpxf[p] = ephesos.retr_booltpxf(gdat.listipnt[p], gdat.listipntspoc)
+                    gdat.booltpxf[p] = miletos.retr_booltpxf(gdat.listipnt[p], gdat.listipntspoc)
 
             if gdat.booldiag:
                 if not gdat.booltesspast:
@@ -2214,7 +2252,7 @@ def init( \
                 for o in gdat.indxtsec[p]:
                     # get reference light curve
                     if gdat.booltpxf[p][o]:
-                        arry, tsecrefr, tcam, tccd = ephesos.read_tesskplr_file(listpathdownspoclcur[cntr], strgtypelcur='PDCSAP_FLUX')
+                        arry, tsecrefr, tcam, tccd = miletos.read_tesskplr_file(listpathdownspoclcur[cntr], strgtypelcur='PDCSAP_FLUX')
                         gdat.refr.time[p][o][0] = arry[:, 0]
                         gdat.refr.rflx[p][o][0] = arry[:, 1]
                         gdat.refr.stdvrflx[p][o][0] = arry[:, 2]
