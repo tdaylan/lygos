@@ -1140,10 +1140,13 @@ def init( \
     # string for date and time
     gdat.strgtimestmp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     
+    print('')
+    print('')
+    print('')
     print('lygos initialized at %s...' % gdat.strgtimestmp)
     # paths
     gdat.pathbase = os.environ['LYGOS_DATA_PATH'] + '/'
-    gdat.pathvisulygo = gdat.pathbase + 'imag/'
+    gdat.pathvisulygo = gdat.pathbase + 'visuals/'
     gdat.pathdatalygo = gdat.pathbase + 'data/'
     
     np.set_printoptions(linewidth=200, \
@@ -1520,10 +1523,10 @@ def init( \
     gdat.ipnttesscurr = 155
 
     gdat.pathdatatarg = gdat.pathtarg + 'data/'
-    gdat.pathvisutarg = gdat.pathtarg + 'imag/'
+    gdat.pathvisutarg = gdat.pathtarg + 'visuals/'
     gdat.pathclus = gdat.pathbase + '%s' % gdat.strgclus
     gdat.pathdataclus = gdat.pathclus + 'data/'
-    gdat.pathvisuclus = gdat.pathclus + 'imag/'
+    gdat.pathvisuclus = gdat.pathclus + 'visuals/'
     
     if gdat.boolplot:
         os.system('mkdir -p %s' % gdat.pathvisulygo)
