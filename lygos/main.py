@@ -772,7 +772,7 @@ def init( \
          ## number of pixels on a side to cut out
          numbside=None, \
          ## Boolean flag to use Target Pixel Files (TPFs) at the highest cadence whenever possible
-         booltpxflygo=True, \
+         boolutiltpxf=True, \
          ## target
          ### a string to be used to search MAST for the target
          strgmast=None, \
@@ -1595,8 +1595,12 @@ def init( \
         # get TESS FFI data via TESSCut, either using the stored HDU lists for each sector or online
         gdat.pathdatatargtcut = gdat.pathdatatarg + 'TESSCut/'
         if os.path.exists(gdat.pathdatatargtcut):
-            print('Looking for HDU files in %s...' % gdat.pathdatatargtcut)
-            listname = fnmatch.filter(os.listdir(gdat.pathdatatargtcut), 'ts*.fits')
+            print('Looking for TESSCut FITS files in %s...' % gdat.pathdatatargtcut)
+            listname = fnmatch.filter(os.listdir(gdat.pathdatatargtcut), 'tess-*_astrocut.fits')
+            if len(listname) == 0:
+                print('Did not find any TESSCut FITS files.')
+        else:
+            print('The path in which TESSCut FITS files are expected does not exist: %s' % gdat.pathdatatargtcut)
         
         if not os.path.exists(gdat.pathdatatargtcut) or len(listname) == 0:
             
@@ -1612,23 +1616,22 @@ def init( \
             print('Will download the data via wget, unzip, and read the files...')
             
             strgfile = 'astrocut?ra=%.6f&dec=%.6f&y=%d&x=%d' % (gdat.rasctarg, gdat.decltarg, gdat.numbsidedefa, gdat.numbsidedefa)
-            pathastr = os.environ['LYGOS_DATA_PATH'] + '/data/tesscutttemp/'
-            strgfileastrzipp = '%sastrocut_%s.zip' % (pathastr, strgfile)
+            strgfileastrzipp = '%sastrocut_%s.zip' % (gdat.pathdatatargtcut, strgfile)
             
             cmnd = 'wget "https://mast.stsci.edu/tesscut/api/v0.1/%s" -O "%s"' % (strgfile, strgfileastrzipp)
             print(cmnd)
             os.system(cmnd)
             
-            cmnd = 'tar -zxvf "%s" -C %s' % (strgfileastrzipp, pathastr)
+            cmnd = 'tar -zxvf "%s" -C %s' % (strgfileastrzipp, gdat.pathdatatargtcut)
             print(cmnd)
             os.system(cmnd)
             
             strgkeyy = "tess-s*_%.6f_%.6f_%dx%d_astrocut.fits" % (gdat.rasctarg, gdat.decltarg, gdat.numbsidedefa, gdat.numbsidedefa)
-            liststrgfile = fnmatch.filter(os.listdir(pathastr), strgkeyy)
+            liststrgfile = fnmatch.filter(os.listdir(gdat.pathdatatargtcut), strgkeyy)
             
             listhdundatatemp = []
             for strgfile in liststrgfile:
-                path = pathastr + strgfile
+                path = gdat.pathdatatargtcut + strgfile
                 print('Reading from %s...' % path)
                 listhdundatatemp.append(astropy.io.fits.open(path))
             
@@ -1688,14 +1691,16 @@ def init( \
         gdat.listipntspoc = []
         gdat.listtcamspoc = []
         gdat.listtccdspoc = []
-        print('booltpxflygo')
-        print(booltpxflygo)
-        if booltpxflygo:
+        print('boolutiltpxf')
+        print(boolutiltpxf)
+        if boolutiltpxf:
             
             # get the list of sectors for which TPF data are available
-            print('Retrieving the list of available TESS sectors for which there are TPF data...')
+            print('Retrieving the list of available TESS sectors for which there is higher-cadence SPOC TPF data...')
             # get observation tables
             listtablobsv = nicomedia.retr_listtablobsv(gdat.strgmast)
+            numbtablobsv = len(listtablobsv)
+            print('%d observation tables have been found.' % numbtablobsv)
             listprodspoc = []
             for k, tablobsv in enumerate(listtablobsv):
                 
@@ -2770,7 +2775,12 @@ def init( \
             gdat.cntpdatasexp = gdat.cntpdata[:, :, 0]
         
             gdat.cntpdatatmed = np.nanmedian(gdat.cntpdata, axis=-1)
+            gdat.cntpdatatser = np.median(np.median(gdat.cntpdata, axis=0), axis=0)
             
+            if not np.isfinite(gdat.cntpdatatser).any():
+                print('No time stamp without NaNs are found. Skipping this sector...')
+                continue
+
             if gdat.fitt.typepsfnshap == 'data':
                 gdat.cntpdatapsfn = gdat.cntpdatatmed - np.percentile(gdat.cntpdatatmed, 90.)
                 gdat.cntpdatapsfn[np.where(gdat.cntpdatapsfn < 0)] = 0
@@ -3119,7 +3129,13 @@ def init( \
             
             if not np.isfinite(gdat.cntpdata).all():
                 print('There is NaN in the data!')
-            
+                print('gdat.cntpdata')
+                summgene(gdat.cntpdata)
+                print('gdat.cntpdatatmed')
+                summgene(gdat.cntpdatatmed)
+                print('np.median(np.median(gdat.cntpdata, axis=0), axis=0)')
+                summgene(np.median(np.median(gdat.cntpdata, axis=0), axis=0))
+
             gdat.boolbackoffs = True
             gdat.boolposioffs = False
             
@@ -3592,26 +3608,58 @@ def init( \
                             # filter based on background
                             #indxgoodbkgd = np.where(gdat.fitt.arrytser[p][o][e][x][y][:, 1, -1] < 3. * np.median(gdat.fitt.arrytser[p][o][e][x][y][:, 1, -1]))[0]
                             #gdat.fitt.arrytser[p][o][e][x][y] = gdat.fitt.arrytser[p][o][e][x][y][indxgoodbkgd, :, :]
-
-                            gdat.medifittcnts = np.median(gdat.fitt.arrytser[p][o][e][x][y][:, 1, :], 0)
-                            print('Median flux of the central source is %g ADU.' % gdat.medifittcnts[0])
                             
-                            gdat.medifittcntsinit = np.median(gdat.fitt.arrytser[p][o][e][x][y][:int(gdat.fitt.arrytser[p][o][e][x][y].shape[0]*0.1), 1, :], 0)
-                            print('Median flux of the central source is %g ADU.' % gdat.medifittcnts[0])
+                            # indices where time series is not NaN
+                            
+                            indxtimegood = np.where(np.isfinite(gdat.fitt.arrytser[p][o][e][x][y][:, :, :]).all(axis=1).all(axis=1))[0]
+
+                            gdat.medifittcnts = np.median(gdat.fitt.arrytser[p][o][e][x][y][indxtimegood, 1, :], 0)
+                            print('Median flux of the light curve of the central source is %g ADU.' % gdat.medifittcnts[0])
+                            
+                            gdat.medifittcntsinit = np.median(gdat.fitt.arrytser[p][o][e][x][y][indxtimegood[:int(indxtimegood.size*0.1)], 1, :], 0)
+                            print('Median flux of the initial 10%% of the light curve of the central source is %g ADU.' % gdat.medifittcntsinit[0])
                             
                             print('Normalizing the time-series flux...')
                             # normalize fluxes to get relative fluxes
                             if gdat.boolnorm:
                                 if gdat.typenorm == 'medi':
+                                    if gdat.booldiag:
+                                        if not np.isfinite(gdat.medifittcnts).all():
+                                            print('')
+                                            print('')
+                                            print('')
+                                            raise Exception('not np.isfinite(gdat.medifittcnts).all()')
+
                                     gdat.fitt.arrytser[p][o][e][x][y][:, 1:3, :] /= gdat.medifittcnts[None, None, :]
+                                
                                 if gdat.typenorm == 'mediinit':
+                                    if gdat.booldiag:
+                                        if not np.isfinite(gdat.medifittcntsinit).all():
+                                            print('')
+                                            print('')
+                                            print('')
+                                            raise Exception('not np.isfinite(gdat.medifittcntsinit).all()')
+
                                     gdat.fitt.arrytser[p][o][e][x][y][:, 1:3, :] /= gdat.medifittcntsinit[None, None, :]
                                 
-                            gdat.fitt.tserfile[p][o][e][x][y] = np.empty((gdat.fitt.arrytser[p][o][e][x][y][:, 0, k].size, 1+2*gdat.fitt.numbcomp[e]))
-                            gdat.fitt.tserfile[p][o][e][x][y][:, 0] = gdat.fitt.arrytser[p][o][e][x][y][:, 0, 0]
+                            gdat.fitt.tserfile[p][o][e][x][y] = np.empty((indxtimegood.size, 1+2*gdat.fitt.numbcomp[e]))
+                            gdat.fitt.tserfile[p][o][e][x][y][:, 0] = gdat.fitt.arrytser[p][o][e][x][y][indxtimegood, 0, 0]
                             for k in gdat.fitt.indxcomp[e]:
-                                gdat.fitt.tserfile[p][o][e][x][y][:, 2*k+1] = gdat.fitt.arrytser[p][o][e][x][y][:, 1, k]
-                                gdat.fitt.tserfile[p][o][e][x][y][:, 2*k+2] = gdat.fitt.arrytser[p][o][e][x][y][:, 2, k]
+                                gdat.fitt.tserfile[p][o][e][x][y][:, 2*k+1] = gdat.fitt.arrytser[p][o][e][x][y][indxtimegood, 1, k]
+                                gdat.fitt.tserfile[p][o][e][x][y][:, 2*k+2] = gdat.fitt.arrytser[p][o][e][x][y][indxtimegood, 2, k]
+                            
+                            if gdat.booldiag:
+                                if not np.isfinite(gdat.fitt.tserfile[p][o][e][x][y][indxtimegood, :3]).all():
+                                    print('')
+                                    print('')
+                                    print('')
+                                    raise Exception('not np.isfinite(gdat.fitt.tserfile[p][o][e][x][y][indxtimegood, :3]).all()')
+                            
+                                if not np.isfinite(gdat.fitt.tserfile[p][o][e][x][y][indxtimegood, :]).all():
+                                    print('')
+                                    print('')
+                                    print('')
+                                    raise Exception('not np.isfinite(gdat.fitt.tserfile[p][o][e][x][y][indxtimegood, :]).all()')
                             
                             # write the light curves to the disk
                             print('Writing all light curves to %s...' % pathsaverflx)
@@ -3625,6 +3673,7 @@ def init( \
                             print('Writing meta data to %s...' % pathsavemeta)
                             arry = np.empty((gdat.medifittcnts.size, 2), dtype=object)
                             arry[:, 0] = gdat.fitt.catl['labl']
+                            arry[-1, 0] = 'Background'
                             arry[:, 1] = gdat.medifittcnts
                             np.savetxt(pathsavemeta, arry, delimiter=',', header='Target,Temporal median counts for each component', fmt="%s %.3g")
                                 
