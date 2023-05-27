@@ -1639,18 +1639,19 @@ def init( \
             objtproc = multiprocessing.Process(target=down_tcut, args=(gdat, ))
             objtproc.start()
             
-            timetout = 10 # [sec]
+            # time out
+            timetout = 360 # [sec]
 
             # Wait for 10 seconds or until process finishes
             objtproc.join(timetout)
 
-            # If thread is still active
+            # check if the process is still active
             if objtproc.is_alive():
-                print('\nThe download call to TESSCut is still running after %d seconds, which may indicate a problem. Will kill it...' % timetout)
+                print('\nThe download call to TESSCut is still running after %d seconds, which may indicate a problem. Will time out and kill it...' % timetout)
 
                 # Terminate - may not work if process is stuck for good
-                objtproc.terminate()
-                # objtproc.kill()
+                #objtproc.terminate()
+                objtproc.kill()
 
                 objtproc.join()
                 
