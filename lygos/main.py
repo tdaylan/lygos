@@ -30,6 +30,27 @@ import nicomedia
 import miletos
 
 
+def down_tcut(gdat):
+            
+    #strgsrch = '%g %g' % (gdat.rasctarg, gdat.decltarg)
+    #print('Calling TESSCut at %s with size %d to get the data...' % (strgsrch, gdat.numbside[p]))
+    #listhdundatatemp = astroquery.mast.Tesscut.get_cutouts(coordinates=strgsrch, size=gdat.numbside[p])
+
+    print('')
+    print('Will download the data via wget, unzip, and read the files...')
+    
+    strgfile = 'astrocut?ra=%.6f&dec=%.6f&y=%d&x=%d' % (gdat.rasctarg, gdat.decltarg, gdat.numbsidedefa, gdat.numbsidedefa)
+    strgfileastrzipp = '%sastrocut_%s.zip' % (gdat.pathdatatargtcut, strgfile)
+    
+    cmnd = 'wget "https://mast.stsci.edu/tesscut/api/v0.1/%s" -O "%s"' % (strgfile, strgfileastrzipp)
+    print(cmnd)
+    os.system(cmnd)
+    
+    cmnd = 'tar -zxvf "%s" -C %s' % (strgfileastrzipp, gdat.pathdatatargtcut)
+    print(cmnd)
+    os.system(cmnd)
+
+
 def retr_fluxfromtmag(tmag):
     '''
     Calculate the flux per second from the TESS magnitude
@@ -1590,6 +1611,8 @@ def init( \
     for p in gdat.indxinst:
         if gdat.liststrginst[p].startswith('TESS') and gdat.liststrginst[p] != 'TESSCam':
             booltessanyy = True
+    
+    gdat.boolterm = False
 
     if booltessanyy:
         # get TESS FFI data via TESSCut, either using the stored HDU lists for each sector or online
@@ -1606,26 +1629,37 @@ def init( \
             
             os.system('mkdir -p %s' % gdat.pathdatatargtcut)
             
-            #strgsrch = '%g %g' % (gdat.rasctarg, gdat.decltarg)
-            #print('Calling TESSCut at %s with size %d to get the data...' % (strgsrch, gdat.numbside[p]))
-            #listhdundatatemp = astroquery.mast.Tesscut.get_cutouts(coordinates=strgsrch, size=gdat.numbside[p])
-
             timeinit = timemodu.time()
 
-            print('')
-            print('Will download the data via wget, unzip, and read the files...')
+            #down_tcut(gdat)
+
+            import multiprocessing
+
+            # Start bar as a process
+            objtproc = multiprocessing.Process(target=down_tcut, args=(gdat, ))
+            objtproc.start()
             
-            strgfile = 'astrocut?ra=%.6f&dec=%.6f&y=%d&x=%d' % (gdat.rasctarg, gdat.decltarg, gdat.numbsidedefa, gdat.numbsidedefa)
-            strgfileastrzipp = '%sastrocut_%s.zip' % (gdat.pathdatatargtcut, strgfile)
-            
-            cmnd = 'wget "https://mast.stsci.edu/tesscut/api/v0.1/%s" -O "%s"' % (strgfile, strgfileastrzipp)
-            print(cmnd)
-            os.system(cmnd)
-            
-            cmnd = 'tar -zxvf "%s" -C %s' % (strgfileastrzipp, gdat.pathdatatargtcut)
-            print(cmnd)
-            os.system(cmnd)
-            
+            timetout = 10 # [sec]
+
+            # Wait for 10 seconds or until process finishes
+            objtproc.join(timetout)
+
+            # If thread is still active
+            if objtproc.is_alive():
+                print('\nThe download call to TESSCut is still running after %d seconds, which may indicate a problem. Will kill it...' % timetout)
+
+                # Terminate - may not work if process is stuck for good
+                objtproc.terminate()
+                # objtproc.kill()
+
+                objtproc.join()
+                
+                gdat.boolterm = True
+
+            else:
+                timefinl = timemodu.time()
+                print('Successfully called TESSCut in %g seconds.' % (timefinl - timeinit))
+                            
             strgkeyy = "tess-s*_%.6f_%.6f_%dx%d_astrocut.fits" % (gdat.rasctarg, gdat.decltarg, gdat.numbsidedefa, gdat.numbsidedefa)
             liststrgfile = fnmatch.filter(os.listdir(gdat.pathdatatargtcut), strgkeyy)
             
@@ -1639,10 +1673,6 @@ def init( \
                 #path = gdat.pathdatatargtcut + 'ts%02d.fits' % listhdundatatemp[oo][0].header['SECTOR']
                 #astropy.io.fits.HDUList(listhdundatatemp[oo]).writeto(path)
             
-            timefinl = timemodu.time()
-            #print('Called TESSCut in %g seconds.' % (timefinl - timeinit))
-            print('Grabbed the data in %g seconds.' % (timefinl - timeinit))
-                            
         else:
             listhdundatatemp = []
             for name in listname:
@@ -1848,6 +1878,28 @@ def init( \
     for p in gdat.indxinst:
         gdat.numbpoin[p] = gdat.listipnt[p].size
     
+    if gdat.typedata != 'simutoyy':
+        # Boolean flag to indicate TESS data in the "past"
+        ## if False, it means the data must be simulated
+        gdat.booltesspast = gdat.liststrginst[p] == 'TESS' and (gdat.listipnt[p] < gdat.ipnttesscurr).all()
+        if gdat.booltesspast:
+            gdat.dictoutp['listtsec'] = gdat.listipnt
+            gdat.dictoutp['listtcam'] = gdat.listtcam
+            gdat.dictoutp['listtccd'] = gdat.listtccd
+            if gdat.booldiag:
+                if len(gdat.listipnt[p]) != len(gdat.listtcam):
+                    print('')
+                    print('')
+                    print('')
+                    print('gdat.listipnt[p]')
+                    print(gdat.listipnt[p])
+                    print('gdat.listtcam')
+                    print(gdat.listtcam)
+                    raise Exception('len(gdat.listipnt[p]) != len(gdat.listtcam)')
+
+    if gdat.boolterm:
+        return gdat.dictoutp
+
     if (gdat.numbpoin == 0).any():
         print('')
         print('')
@@ -1906,9 +1958,6 @@ def init( \
         gdat.booltpxf[p] = np.zeros(gdat.numbpoin[p], dtype=bool)
         
         if gdat.typedata != 'simutoyy':
-            # Boolean flag to indicate TESS data in the "past"
-            ## if False, it means the data must be simulated
-            gdat.booltesspast = gdat.liststrginst[p] == 'TESS' and (gdat.listipnt[p] < gdat.ipnttesscurr).all()
         
             if gdat.booltesspast:
                 if gdat.boolinptnumbside and gdat.numbside[p] != 11:
@@ -1972,16 +2021,6 @@ def init( \
                 else:
                     print('%d sectors (unique pointings directions) of data retrieved for instrument %s.' % (gdat.numbpoin[p], gdat.liststrginst[p]))
     
-                gdat.dictoutp['listtsec'] = gdat.listipnt
-                gdat.dictoutp['listtcam'] = gdat.listtcam
-                gdat.dictoutp['listtccd'] = gdat.listtccd
-                if len(gdat.listipnt[p]) != len(gdat.listtcam):
-                    print('gdat.listipnt[p]')
-                    print(gdat.listipnt[p])
-                    print('gdat.listtcam')
-                    print(gdat.listtcam)
-                    raise Exception('')
-
                 ## check for an earlier lygos run
                 #for o in gdat.indxtsec:
                 #    strgtsec = 'sc%02d' % gdat.listipnt[p][o]
