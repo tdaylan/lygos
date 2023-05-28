@@ -1858,10 +1858,18 @@ def init( \
                 gdat.listtcam.append(gdat.listtcamffim[p][indx[0]])
                 gdat.listtccd.append(gdat.listtccdffim[p][indx[0]])
         
+        gdat.listipnt[gdat.dictindxinst['TESS']] = np.array(gdat.listipnt[gdat.dictindxinst['TESS']])
+        
         print('gdat.listipnt')
         print(gdat.listipnt)
-        
-        gdat.listipnt[gdat.dictindxinst['TESS']] = np.array(gdat.listipnt[gdat.dictindxinst['TESS']])
+        if gdat.booldiag:
+            for o in range(len(gdat.listipnt[gdat.dictindxinst['TESS']])):
+                if gdat.listipnt[gdat.dictindxinst['TESS']][o].size == 0:
+                    print('')
+                    print('')
+                    print('')
+                    print('')
+                    raise Exception('')
         
         print('gdat.listipnt')
         print(gdat.listipnt)
@@ -1931,8 +1939,6 @@ def init( \
             gdat.listnameanls.append('aper')
             gdat.indxanlsaper = 1
     
-    print('temp')
-    gdat.listnameanls = ['psfn']
     gdat.indxanlsaper = 0
 
     gdat.numbanls = len(gdat.listnameanls)
@@ -3949,6 +3955,9 @@ def init( \
         if name.startswith('strghead'):
             continue
         gdat.dictoutp[name] = valu
+    
+    print('gdat.dictoutp[arryrflx][nameanls]')
+    print(gdat.dictoutp[arryrflx]['psfn'])
     
     timefinltotl = timemodu.time()
     print('lygos ran in %g seconds.' % (timefinltotl - timeinittotl))
