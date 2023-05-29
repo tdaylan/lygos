@@ -3217,13 +3217,25 @@ def init( \
             gdat.fitt.indxcomp = [[] for e in gdat.indxanls]
             gdat.fitt.indxpnts = [[] for e in gdat.indxanls]
             for e, nameanls in enumerate(gdat.listnameanls):
+                
                 if nameanls == 'aper':
                     gdat.fitt.numbpntsneig[e] = 0
                     gdat.fitt.numbcomp[e] = 2
-                if nameanls == 'psfn':
+                elif nameanls == 'psfn':
                     gdat.fitt.numbpntsneig[e] = gdat.fitt.numbpnts[e] - 1
                     gdat.fitt.numbcomp[e] = gdat.fitt.numbpnts[e] + 1
-            
+                else:
+                    print('')
+                    print('')
+                    print('')
+                    print('e')
+                    print(e)
+                    print('gdat.listnameanls')
+                    print(gdat.listnameanls)
+                    print('gdat.fitt.numbpntsneig[e]')
+                    print(gdat.fitt.numbpntsneig[e])
+                    raise Exception('nameanls is undefined.')
+                
                 gdat.fitt.indxpntsneig[e] = np.arange(gdat.fitt.numbpntsneig[e])
                 gdat.fitt.indxpnts[e] = np.arange(gdat.fitt.numbpnts[e])
                 gdat.fitt.indxcomp[e] = np.arange(gdat.fitt.numbcomp[e])
@@ -3958,9 +3970,6 @@ def init( \
         if name.startswith('strghead'):
             continue
         gdat.dictoutp[name] = valu
-    
-    print('gdat.dictoutp[arryrflx][nameanls]')
-    print(gdat.dictoutp[arryrflx]['psfn'])
     
     timefinltotl = timemodu.time()
     print('lygos ran in %g seconds.' % (timefinltotl - timeinittotl))
