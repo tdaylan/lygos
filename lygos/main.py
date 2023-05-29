@@ -1864,6 +1864,9 @@ def init( \
         print(gdat.listipnt)
         if gdat.booldiag:
             for o in range(len(gdat.listipnt[gdat.dictindxinst['TESS']])):
+                print('gdat.listipnt[gdat.dictindxinst[TESS]][o]')
+                print(gdat.listipnt[gdat.dictindxinst['TESS']][o])
+                
                 if gdat.listipnt[gdat.dictindxinst['TESS']][o].size == 0:
                     print('')
                     print('')
