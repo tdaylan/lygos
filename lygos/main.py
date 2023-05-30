@@ -1810,39 +1810,32 @@ def init( \
         
         gdat.listipntffim[p] = np.array(gdat.listipntffim[p], dtype=int)
         
-        print('')
-        print('')
-        print('')
-        print('')
-        print('')
-        print('')
-        print('')
-        print('')
-        print('')
-        print('')
-        print('')
-        print('')
-        print('p')
-        print(p)
-        print('gdat.listipntffim[p]')
-        print(gdat.listipntffim[p])
-        print('gdat.listipntspoc')
-        print(gdat.listipntspoc)
         if len(gdat.listipntspoc) == 0:
             gdat.listipntconc = gdat.listipntffim[p]
         else:
             gdat.listipntconc = np.unique(np.concatenate((gdat.listipntffim[p], gdat.listipntspoc), dtype=int))
-        print('gdat.listipntconc')
-        print(gdat.listipntconc)
         
         if gdat.listipntsele is not None:
+            
+            if isinstance(gdat.listipntsele, list):
+                gdat.listipntsele = np.array(gdat.listipntsele)
+
+            if gdat.booldiag:
+                if np.setdiff1d(gdat.listipntsele, gdat.listipntconc).size > 0:
+                    print('')
+                    print('')
+                    print('')
+                    print('gdat.listipntsele')
+                    print(gdat.listipntsele)
+                    print('gdat.listipntconc')
+                    print(gdat.listipntconc)
+                    raise Exception('gdat.listipntsele has a sector not available.')
+
             print('Taking only selected sectors...')
             print('gdat.listipntsele')
             print(gdat.listipntsele)
             gdat.listipntconc = [tsec for tsec in gdat.listipntconc if tsec in gdat.listipntsele]
-        
-        print('gdat.listipnt')
-        print(gdat.listipnt)
+            
         print('gdat.listipntconc')
         print(gdat.listipntconc)
         
@@ -1862,6 +1855,7 @@ def init( \
         
         print('gdat.listipnt')
         print(gdat.listipnt)
+        
         if gdat.booldiag:
             for o in range(len(gdat.listipnt[gdat.dictindxinst['TESS']])):
                 print('gdat.listipnt[gdat.dictindxinst[TESS]][o]')
@@ -1873,9 +1867,6 @@ def init( \
                     print('')
                     print('')
                     raise Exception('')
-        
-        print('gdat.listipnt')
-        print(gdat.listipnt)
         
         gdat.listtcam = np.array(gdat.listtcam)
         gdat.listtccd = np.array(gdat.listtccd)
