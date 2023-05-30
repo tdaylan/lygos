@@ -1829,7 +1829,8 @@ def init( \
                     print(gdat.listipntsele)
                     print('gdat.listipntconc')
                     print(gdat.listipntconc)
-                    raise Exception('gdat.listipntsele has a sector not available.')
+                    #raise Exception
+                    print('Warning!! gdat.listipntsele has a sector not available.')
 
             print('Taking only selected sectors...')
             print('gdat.listipntsele')
