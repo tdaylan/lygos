@@ -1074,8 +1074,10 @@ def init( \
     
     if gdat.booldiag:
         for p in gdat.indxinst:
-            if gdat.liststrgtypedata[p] in ['simutargsynt', 'simutargpartsynt', 'simutargpartinje', 'obsd']:
-                raise Exception('')
+            if not gdat.liststrgtypedata[p] in ['simutargsynt', 'simutargpartsynt', 'simutargpartinje', 'obsd']:
+                print('gdat.liststrgtypedata')
+                print(gdat.liststrgtypedata)
+                raise Exception('gdat.liststrgtypedata has an issue.')
 
     if isinstance(gdat.numbside, list):
         gdat.numbside = np.array(gdat.numbside)
@@ -1188,20 +1190,20 @@ def init( \
                     gdat.ticitarg is None and gdat.strgmast is not None and gdat.toiitarg is None and gdat.rasctarg is None and gdat.decltarg is None or \
                     gdat.ticitarg is None and gdat.strgmast is None and gdat.toiitarg is not None and gdat.rasctarg is None and gdat.decltarg is None or \
                     gdat.ticitarg is None and gdat.strgmast is None and gdat.toiitarg is None and gdat.rasctarg is not None and gdat.decltarg is not None):
-                print('')
-                print('')
-                print('')
-                print('gdat.ticitarg')
-                print(gdat.ticitarg)
-                print('gdat.strgmast')
-                print(gdat.strgmast)
-                print('gdat.toiitarg')
-                print(gdat.toiitarg)
-                print('gdat.rasctarg')
-                print(gdat.rasctarg)
-                print('gdat.decltarg')
-                print(gdat.decltarg)
-                raise Exception('Either a TIC ID (ticitarg), RA&DEC (rasctarg and decltarg), MAST key (strgmast) or a TOI number (toiitarg) should be provided.')
+                    print('')
+                    print('')
+                    print('')
+                    print('gdat.ticitarg')
+                    print(gdat.ticitarg)
+                    print('gdat.strgmast')
+                    print(gdat.strgmast)
+                    print('gdat.toiitarg')
+                    print(gdat.toiitarg)
+                    print('gdat.rasctarg')
+                    print(gdat.rasctarg)
+                    print('gdat.decltarg')
+                    print(gdat.decltarg)
+                    raise Exception('Either a TIC ID (ticitarg), RA&DEC (rasctarg and decltarg), MAST key (strgmast) or a TOI number (toiitarg) should be provided.')
         
             if gdat.liststrgtypedata[p] == 'simutargsynt' and gdat.true.tmagtarg is None:
                 print('')
@@ -1313,7 +1315,7 @@ def init( \
     # list of reference catalogs
     gdat.refr.lablcatl = []
     
-    if gdat.typedata != 'simutargsynt' and gdat.nametarg != 'Earth':
+    if not 'simutargsynt' in gdat.liststrgtypedata and gdat.nametarg != 'Earth':
         # temp -- check that the closest TIC to a given TIC is itself
         if gdat.maxmradiquer is None:
             # temp
@@ -1345,7 +1347,7 @@ def init( \
     gdat.refr.liststrgfeatbase = [[] for q in gdat.refr.indxcatl]
     for q in gdat.refr.indxcatl:
         gdat.refr.liststrgfeatbase[q] += ['labl', 'cntsesti']
-        if gdat.typedata != 'simutargsynt':
+        if not 'simutargsynt' in gdat.liststrgtypedata:
             gdat.refr.liststrgfeatbase[q] += ['rasc', 'decl']
             if gdat.refr.lablcatl[q] == 'TIC':
                 gdat.refr.liststrgfeatbase[q] += ['tici', 'tmag', 'pmde', 'pmra', 'rascorig', 'declorig']
@@ -1381,9 +1383,10 @@ def init( \
 
     for q in gdat.refr.indxcatl:
         
-        if gdat.typedata != 'simutargsynt' and gdat.refr.lablcatl[q] == 'TIC':
-            print('Constructing reference catalog %d...' % q)
-            gdat.refr.numbpntsbase[q] = catalogData[:]['Tmag'].size
+        if not 'simutargsynt' in gdat.liststrgtypedata:
+            if gdat.refr.lablcatl[q] == 'TIC':
+                print('Constructing reference catalog %d...' % q)
+                gdat.refr.numbpntsbase[q] = catalogData[:]['Tmag'].size
         
         #if gdat.typedata == 'simutargpartinje':
         #    gdat.refr.numbpntsbase[q] = catalogData[:]['Tmag'].size
@@ -1395,19 +1398,19 @@ def init( \
         #    #gdat.true.rasctarg = (gdat.maxmnumbside - 1.) / 2.
         #    #gdat.true.decltarg = (gdat.maxmnumbside - 1.) / 2.
         
-        if gdat.typedata.startswith('simutargsynt'):
+        else:
                 
-            if gdat.true.tmagneig.size > 0 or gdat.typedata == 'simutargpartsynt':
+            if gdat.true.tmagneig.size > 0 or 'simutargpartsynt' in gdat.liststrgtypedata:
                 # generate neighbors within 0.5 pixels of the edges
                 gdat.true.velxneig = np.zeros(gdat.true.tmagneig.size)
                 gdat.true.velyneig = np.zeros(gdat.true.tmagneig.size)
                 gdat.refr.catlbase[q]['tmag'] = np.concatenate((np.array([gdat.true.tmagtarg]), gdat.true.tmagneig))
-                if gdat.typedata == 'simutargsynt':
+                if 'simutargsynt' in gdat.liststrgtypedata:
                     gdat.refr.catlbase[q]['xpos'] = np.concatenate((np.array([gdat.true.xpostarg]), gdat.true.xposneig))
                     gdat.refr.catlbase[q]['ypos'] = np.concatenate((np.array([gdat.true.ypostarg]), gdat.true.yposneig))
                     gdat.refr.catlbase[q]['velx'] = np.concatenate((np.array([gdat.true.velxtarg]), gdat.true.velxneig))
                     gdat.refr.catlbase[q]['vely'] = np.concatenate((np.array([gdat.true.velytarg]), gdat.true.velyneig))
-                if gdat.typedata == 'simutargpartinje' or gdat.typedata == 'simutargpartsynt':
+                if 'simutargpartinje' in gdat.liststrgtypedata:
                     gdat.refr.catlbase[q]['rasc'] = np.concatenate((np.array([gdat.true.rasctarg]), catalogData[:]['ra']))
                     gdat.refr.catlbase[q]['decl'] = np.concatenate((np.array([gdat.true.decltarg]), catalogData[:]['dec']))
                     gdat.refr.catlbase[q]['velr'] = np.concatenate((np.array([gdat.true.velrtarg]), 0. * catalogData[:]['ra']))
