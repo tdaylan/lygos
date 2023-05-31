@@ -766,7 +766,7 @@ def setp_cntp(gdat, strg, typecntpscal):
 def retr_strgchun(gdat, p, o):
     
     if gdat.liststrginst[p] == 'TESS':
-        strgchun = '%02d%d%d' % (gdat.listipnt[p][o], gdat.listtcam[o], gdat.listtccd[o])
+        strgchun = '%02d%d%d' % (gdat.listipnt[p][o], gdat.listtcam[p][o], gdat.listtccd[p][o])
     else:
         strgchun = 'ch%02d' % gdat.listipnt[p][o]
         
@@ -781,7 +781,7 @@ def init( \
          ## 'simutargpartsynt': simulated synthetic data on a particular target with a particular observational baseline 
          ## 'simutargpartinje': simulated data obtained by injecting a synthetic signal on observed data on a particular target with a particular observational baseline 
          ## 'obsd': observed data on a particular target
-         typedata='obsd', \
+         liststrgtypedata=None, \
          
          # selected TESS sectors
          listipntsele=None, \
@@ -1046,9 +1046,6 @@ def init( \
     # set the seed
     np.random.seed(seedrand)
     
-    if not gdat.typedata in ['simutargsynt', 'simutargpartsynt', 'simutargpartinje', 'obsd']:
-        raise Exception('')
-
     if gdat.boolplot:
         
         if gdat.boolplotrflx is None:
@@ -1075,6 +1072,11 @@ def init( \
     gdat.numbinst = len(gdat.liststrginst)
     gdat.indxinst = np.arange(gdat.numbinst)
     
+    if gdat.booldiag:
+        for p in gdat.indxinst:
+            if gdat.liststrgtypedata[p] in ['simutargsynt', 'simutargpartsynt', 'simutargpartinje', 'obsd']:
+                raise Exception('')
+
     if isinstance(gdat.numbside, list):
         gdat.numbside = np.array(gdat.numbside)
 
@@ -1091,14 +1093,17 @@ def init( \
     if gdat.maxmtmagcatl is None:
         gdat.maxmtmagcatl = 20.
 
-    if gdat.typedata == 'simutargpartinje':
-        if 'rasctarg' in gdat.true or 'decltarg' in gdat.true:
-            raise Exception('When a sim. source is injected, only provide target RA and Dec and exclude them from the generative model dictionary (dicttrue).')
+    if gdat.booldiag:
+        for p in gdat.indxinst:
+            if gdat.liststrgtypedata[p] == 'simutargpartinje':
+                if 'rasctarg' in gdat.true or 'decltarg' in gdat.true:
+                    raise Exception('When a sim. source is injected, only provide target RA and Dec and exclude them from the generative model dictionary (dicttrue).')
     
     gdat.true = tdpy.util.gdatstrt()
-    if gdat.typedata.startswith('simu'):
-        for name, valu in gdat.dicttrue.items():
-            setattr(gdat.true, name, valu)
+    for p in gdat.indxinst:
+        if gdat.liststrgtypedata[p].startswith('simu'):
+            for name, valu in gdat.dicttrue.items():
+                setattr(gdat.true, name, valu)
 
     # parameters for the true model (also used as default parameters for the fitting model)
     ## right ascension of the target
@@ -1171,40 +1176,40 @@ def init( \
                         precision=5, \
                        )
     
-    print('gdat.typedata')
-    print(gdat.typedata)
+    print('gdat.liststrgtypedata')
+    print(gdat.liststrgtypedata)
     
     # check input
     ## ensure target identifiers are not conflicting
-    if gdat.typedata == 'simutargpartinje' or gdat.typedata == 'obsd':
-        if not (gdat.ticitarg is not None and gdat.strgmast is None and gdat.toiitarg is None and gdat.rasctarg is None and gdat.decltarg is None or \
-                gdat.ticitarg is None and gdat.strgmast is not None and gdat.toiitarg is None and gdat.rasctarg is None and gdat.decltarg is None or \
-                gdat.ticitarg is None and gdat.strgmast is None and gdat.toiitarg is not None and gdat.rasctarg is None and gdat.decltarg is None or \
-                gdat.ticitarg is None and gdat.strgmast is None and gdat.toiitarg is None and gdat.rasctarg is not None and gdat.decltarg is not None):
-            print('')
-            print('')
-            print('')
-            print('gdat.ticitarg')
-            print(gdat.ticitarg)
-            print('gdat.strgmast')
-            print(gdat.strgmast)
-            print('gdat.toiitarg')
-            print(gdat.toiitarg)
-            print('gdat.rasctarg')
-            print(gdat.rasctarg)
-            print('gdat.decltarg')
-            print(gdat.decltarg)
-            raise Exception('Either a TIC ID (ticitarg), RA&DEC (rasctarg and decltarg), MAST key (strgmast) or a TOI number (toiitarg) should be provided.')
-    
-    if gdat.typedata == 'simutargsynt' and gdat.true.tmagtarg is None:
-        print('')
-        print('')
-        print('')
-        print('gdat.typedata')
-        print(gdat.typedata)
-        print('gdat.true.tmagtarg')
-        print(gdat.true.tmagtarg)
-        raise Exception('truetmagtarg needs to be set when simulated data based on a generative model, are generated.')
+    if gdat.booldiag:
+        for p in gdat.indxinst:
+            if gdat.liststrgtypedata[p] == 'simutargpartinje' or gdat.liststrgtypedata[p] == 'obsd':
+                if not (gdat.ticitarg is not None and gdat.strgmast is None and gdat.toiitarg is None and gdat.rasctarg is None and gdat.decltarg is None or \
+                    gdat.ticitarg is None and gdat.strgmast is not None and gdat.toiitarg is None and gdat.rasctarg is None and gdat.decltarg is None or \
+                    gdat.ticitarg is None and gdat.strgmast is None and gdat.toiitarg is not None and gdat.rasctarg is None and gdat.decltarg is None or \
+                    gdat.ticitarg is None and gdat.strgmast is None and gdat.toiitarg is None and gdat.rasctarg is not None and gdat.decltarg is not None):
+                print('')
+                print('')
+                print('')
+                print('gdat.ticitarg')
+                print(gdat.ticitarg)
+                print('gdat.strgmast')
+                print(gdat.strgmast)
+                print('gdat.toiitarg')
+                print(gdat.toiitarg)
+                print('gdat.rasctarg')
+                print(gdat.rasctarg)
+                print('gdat.decltarg')
+                print(gdat.decltarg)
+                raise Exception('Either a TIC ID (ticitarg), RA&DEC (rasctarg and decltarg), MAST key (strgmast) or a TOI number (toiitarg) should be provided.')
+        
+            if gdat.liststrgtypedata[p] == 'simutargsynt' and gdat.true.tmagtarg is None:
+                print('')
+                print('')
+                print('')
+                print('gdat.true.tmagtarg')
+                print(gdat.true.tmagtarg)
+                raise Exception('truetmagtarg needs to be set when simulated data based on a generative model, are generated.')
 
     if gdat.ticitarg is not None or gdat.toiitarg is not None:
         dicttoii = nicomedia.retr_dicttoii()
@@ -1265,7 +1270,12 @@ def init( \
 
     print('gdat.typetarg')
     print(gdat.typetarg)
-    if gdat.typedata == 'simutargpartinje' or gdat.typedata == 'obsd':
+    booltemp = False
+    for p in gdat.indxinst:
+        if gdat.liststrgtypedata[p] == 'simutargpartinje' or gdat.liststrgtypedata[p] == 'obsd':
+            booltemp = True
+    
+    if booltemp:
         print('gdat.strgmast')
         print(gdat.strgmast)
         print('gdat.toiitarg')
@@ -1579,22 +1589,22 @@ def init( \
     
     # list of IDs for pointings (for TESS, this is the sector ID)
     gdat.listipnt = [[] for p in gdat.indxinst]
+    gdat.listtcam = [[] for p in gdat.indxinst]
+    gdat.listtccd = [[] for p in gdat.indxinst]
     
     gdat.dictoutp = dict()
     gdat.dictoutp['arryrflx'] = dict()
-    if gdat.typedata == 'simutargsynt':
-        for p in gdat.indxinst:
-            gdat.listipnt[p] = np.array([1])
-        if 'TESS' in gdat.liststrginst:
-            gdat.listtcam = np.array([0])
-            gdat.listtccd = np.array([0])
+    for p in gdat.indxinst:
+        if gdat.typedata == 'simutargsynt':
+            if 'TESS' in gdat.liststrginst:
+                gdat.listipnt[p] = np.array([1])
+                gdat.listtcam[p] = np.array([0])
+                gdat.listtccd[p] = np.array([0])
     
-    if 'TGEO-IR' in gdat.liststrginst or 'TGEO-VIS' in gdat.liststrginst:
-        for p in gdat.indxinst:
-            if gdat.liststrginst[p] == 'TESS':
+            if 'TGEO-IR' in gdat.liststrginst or 'TGEO-VIS' in gdat.liststrginst:
                 gdat.listipnt[p] = np.array([80])
-                gdat.listtcam = [1]
-                gdat.listtccd = [1]
+                gdat.listtcam[p] = [1]
+                gdat.listtccd[p] = [1]
             else:
                 gdat.listipnt[p] = np.array([1])
     
@@ -2251,13 +2261,14 @@ def init( \
         gdat.refr.labltser = gdat.refrlistlabltser
     else:
         # determine what reference light curve is available for the sector
-        for o in gdat.indxtsec[p]:
-            if gdat.typedata != 'simutargsynt' and gdat.booltpxf[p][o]:
-                gdat.refr.labltser[p][o] += ['SPOC']
+        for p in gdat.indxinst:
+            for o in gdat.indxtsec[p]:
+                if gdat.liststrgtypedata[p] != 'simutargsynt' and gdat.booltpxf[p][o]:
+                    gdat.refr.labltser[p][o] += ['SPOC']
     
-            # number of reference light curves
-            gdat.refr.numbtser[p][o] = len(gdat.refr.labltser[p][o])
-            gdat.refr.indxtser[p][o] = np.arange(gdat.refr.numbtser[p][o])
+                # number of reference light curves
+                gdat.refr.numbtser[p][o] = len(gdat.refr.labltser[p][o])
+                gdat.refr.indxtser[p][o] = np.arange(gdat.refr.numbtser[p][o])
     
     gdat.refr.colrcatl = np.array(['r', 'orange', 'deepskyblue'], dtype=object)
     gdat.refr.colrcatl = gdat.refr.colrcatl[:gdat.refr.numbcatl]
@@ -2294,9 +2305,10 @@ def init( \
             for p in gdat.indxinst:
                 for o in gdat.indxtsec[p]:
                     gdat.boolrefrtser[p][o] = False
-        if gdat.typedata != 'simutargsynt':
-            cntr = 0
-            for p in gdat.indxinst:
+        
+        cntr = 0
+        for p in gdat.indxinst:
+            if gdat.liststrgtypedata[p] != 'simutargsynt':
                 for o in gdat.indxtsec[p]:
                     # get reference light curve
                     if gdat.booltpxf[p][o]:
@@ -2694,8 +2706,6 @@ def init( \
                         print('')
                         print('po')
                         print(p, o)
-                        print('gdat.typedata')
-                        print(gdat.typedata)
                         print('gdat.listhdundata[p][o]')
                         summgene(gdat.listhdundata[p][o])
                         raise Exception('gdat.listhdundata[p][o] is empty.')
@@ -3951,15 +3961,21 @@ def init( \
         
     if gdat.booldiag:
         for p in gdat.indxinst:
-            if len(gdat.dictoutp['arryrflx'][nameanls][p]) != len(gdat.dictoutp['listipnt'][p]):
-                print('')
-                print('')
-                print('')
+            for e in gdat.indxanls:
+                nameanls = gdat.listnameanls[e]
                 print('len(gdat.dictoutp[arryrflx][nameanls][p])')
                 print(len(gdat.dictoutp['arryrflx'][nameanls][p]))
-                print('gdat.dictoutp[listipnt]')
-                summgene(gdat.dictoutp['listipnt'])
-                raise Exception('len(gdat.dictoutp[arryrflx][nameanls][p])')
+                print('gdat.dictoutp[listipnt][p]')
+                summgene(gdat.dictoutp['listipnt'][p])
+                if len(gdat.dictoutp['arryrflx'][nameanls][p]) != len(gdat.dictoutp['listipnt'][p]):
+                    print('')
+                    print('')
+                    print('')
+                    print('len(gdat.dictoutp[arryrflx][nameanls][p])')
+                    print(len(gdat.dictoutp['arryrflx'][nameanls][p]))
+                    print('gdat.dictoutp[listipnt]')
+                    summgene(gdat.dictoutp['listipnt'])
+                    raise Exception('len(gdat.dictoutp[arryrflx][nameanls][p])')
     
     for name, valu in gdat.true.__dict__.items():
         gdat.dictoutp['true'+name] = valu
