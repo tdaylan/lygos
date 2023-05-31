@@ -786,9 +786,6 @@ def init( \
          # selected TESS sectors
          listipntsele=None, \
     
-         # list of TESS sectors for which 
-         #listtsec2min=None, \
-
          # data
          ## number of pixels on a side to cut out
          numbside=None, \
@@ -1279,7 +1276,7 @@ def init( \
     for p in gdat.indxinst:
         if gdat.liststrginst[p].startswith('LSST'):
             gdat.sizepixl[p] = 0.2
-        elif gdat.liststrginst[p].startswith('TESS'):
+        elif gdat.liststrginst[p].startswith('TESS') or gdat.liststrginst[p] == 'TGEO-IR':
             # temp
             gdat.sizepixl[p] = 21.
         elif gdat.liststrginst[p] == 'TESSCam':
@@ -1287,7 +1284,9 @@ def init( \
             gdat.sizepixl[p] = 21.
         elif gdat.liststrginst[p] == 'ULTRASAT':
             gdat.sizepixl[p] = 2.
-        elif gdat.liststrginst[p] == 'FoveaCam':
+        elif gdat.liststrginst[p] == 'TGEO-UV':
+            gdat.sizepixl[p] = 0.2
+        elif gdat.liststrginst[p] == 'TGEO-VIS':
             gdat.sizepixl[p] = 0.2
         else:
             print('gdat.liststrginst')
@@ -1573,7 +1572,7 @@ def init( \
     gdat.strgcnfg = '%s_%s' % (gdat.typedata, gdat.strgtarg)
     
     gdat.dictindxinst = dict()
-    for name in ['TESS', 'TESSCam', 'FoveaCam', 'ULTRASAT', 'LSST']:
+    for name in ['TESS', 'TGEO-IR', 'TGEO-VIS', 'TGEO-UV', 'ULTRASAT', 'LSST']:
         indx = np.where(gdat.liststrginst == name)[0]
         if len(indx) > 0:
             gdat.dictindxinst[name] = indx[0]
@@ -1590,7 +1589,7 @@ def init( \
             gdat.listtcam = np.array([0])
             gdat.listtccd = np.array([0])
     
-    if 'TESSCam' in gdat.liststrginst:
+    if 'TGEO-IR' in gdat.liststrginst or 'TGEO-VIS' in gdat.liststrginst:
         for p in gdat.indxinst:
             if gdat.liststrginst[p] == 'TESS':
                 gdat.listipnt[p] = np.array([80])
@@ -1886,7 +1885,7 @@ def init( \
         ## if False, it means the data must be simulated
         gdat.booltesspast = gdat.liststrginst[p] == 'TESS' and (gdat.listipnt[p] < gdat.ipnttesscurr).all()
         if gdat.booltesspast:
-            gdat.dictoutp['listtsec'] = gdat.listipnt
+            gdat.dictoutp['listipnt'] = gdat.listipnt
             gdat.dictoutp['listtcam'] = gdat.listtcam
             gdat.dictoutp['listtccd'] = gdat.listtccd
             if gdat.booldiag:
@@ -1990,7 +1989,7 @@ def init( \
         print(gdat.booltpxf[p])
         
         # determine the cadence
-        if gdat.liststrginst[p] == 'TESS' or gdat.liststrginst[p] == 'FoveaCam' or gdat.liststrginst[p] == 'ULTRASAT' or gdat.liststrginst[p] == 'TESSCam':
+        if gdat.liststrginst[p] == 'TESS' or gdat.liststrginst[p].startswith('TGEO') or gdat.liststrginst[p] == 'ULTRASAT' or gdat.liststrginst[p] == 'TESSCam':
             
             # set up the gain
             gdat.gainphot[p] = 1.
@@ -2460,7 +2459,7 @@ def init( \
                     raise Exception('')
 
             if gdat.typedata == 'simutargsynt' or gdat.typedata == 'simutargpartsynt':
-                if gdat.liststrginst[p] == 'TESS' or gdat.liststrginst[p] == 'FoveaCam' or gdat.liststrginst[p] == 'ULTRASAT' or gdat.liststrginst[p] == 'TESSCam':
+                if gdat.liststrginst[p] == 'TESS' or gdat.liststrginst[p].startswith('TGEO') or gdat.liststrginst[p] == 'ULTRASAT' or gdat.liststrginst[p] == 'TESSCam':
                     if gdat.typecade[p][o] == '2min':
                         gdat.timeexpo[p][o] = 2. / 60. / 24. # [days]
                     elif gdat.typecade[p][o] == '10mn':
@@ -2591,7 +2590,7 @@ def init( \
                     if gdat.liststrginst[p] == 'ULTRASAT':
                         gdat.cntpmodlsimu += 10. # [e-/s]
 
-                    if gdat.liststrginst[p] == 'FoveaCam':
+                    if gdat.liststrginst[p].startswith('TGEO'):
                         gdat.cntpmodlsimu += 80. # [e-/s]
                     
                     if gdat.liststrginst[p] == 'TESSCam' or gdat.liststrginst[p] == 'TESS':
@@ -2608,7 +2607,7 @@ def init( \
                         typesour = 'Earth'
                     for t in np.arange(gdat.listtime[p][o].size):
                         if gdat.refr.lablcatl[q] == 'TIC' or gdat.refr.lablcatl[q] == 'CustDSCVR' and gdat.nametarg == 'Earth' and \
-                                                        (gdat.liststrginst[p] == 'FoveaCam' or gdat.liststrginst[p] == 'TESSCam' or gdat.liststrginst[p] == 'TESS'):
+                                                        (gdat.liststrginst[p].startswith('TGEO') or gdat.liststrginst[p] == 'TESSCam' or gdat.liststrginst[p] == 'TESS'):
                             # Boolean flag indicating if the target is a Solar System object
                             if gdat.true.booltargssob:
                                 
@@ -3950,6 +3949,18 @@ def init( \
                 gdat.dictoutp['nois%s%s%s' % (gdat.liststrginst[p], strgchun, nameanls)] = gdat.listnois[p][o][e][1, 1]
                 gdat.dictoutp['arryrflx'][nameanls][p][o] = gdat.fitt.arrytser[p][o][e][1][1][:, :, 0]
         
+    if gdat.booldiag:
+        for p in gdat.indxinst:
+            if len(gdat.dictoutp['arryrflx'][nameanls][p]) != len(gdat.dictoutp['listipnt'][p]):
+                print('')
+                print('')
+                print('')
+                print('len(gdat.dictoutp[arryrflx][nameanls][p])')
+                print(len(gdat.dictoutp['arryrflx'][nameanls][p]))
+                print('gdat.dictoutp[listipnt]')
+                summgene(gdat.dictoutp['listipnt'])
+                raise Exception('len(gdat.dictoutp[arryrflx][nameanls][p])')
+    
     for name, valu in gdat.true.__dict__.items():
         gdat.dictoutp['true'+name] = valu
     
