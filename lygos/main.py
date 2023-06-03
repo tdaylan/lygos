@@ -766,7 +766,7 @@ def setp_cntp(gdat, strg, typecntpscal):
 def retr_strgchun(gdat, p, o):
     
     if gdat.liststrginst[p] == 'TESS':
-        strgchun = '%02d%d%d' % (gdat.listipnt[p][o], gdat.listtcam[p][o], gdat.listtccd[p][o])
+        strgchun = '%02d%d%d' % (gdat.listipnt[p][o], gdat.listtcam[o], gdat.listtccd[o])
     else:
         strgchun = 'ch%02d' % gdat.listipnt[p][o]
         
@@ -789,8 +789,10 @@ def init( \
          # data
          ## number of pixels on a side to cut out
          numbside=None, \
+         
          ## Boolean flag to use Target Pixel Files (TPFs) at the highest cadence whenever possible
          boolutiltpxf=True, \
+         
          ## target
          ### a string to be used to search MAST for the target
          strgmast=None, \
@@ -1380,61 +1382,76 @@ def init( \
 
     if gdat.declorigtarg is None:
         gdat.declorigtarg = gdat.decltarg
+    
+    if gdat.booldiag:
+        if 'simutargsynt' in gdat.liststrgtypedata:
+            for p in gdat.indxinst:
+                if gdat.liststrgtypedata[p] != 'simutargsynt':
+                    print('')
+                    print('')
+                    print('')
+                    raise Exception('IF gdat.liststrgtypedata contains simutargsynt then all instruments should be simutargsynt.')
 
-    for q in gdat.refr.indxcatl:
+    gdat.boolsimuanyy = False
+    for p in gdat.indxinst:
+        if 'simu' in gdat.liststrgtypedata[p]:
+            gdat.boolsimuanyy = True
+    
+    # Boolean flag indicating if the target is a synthetic simulated target
+    gdat.boolsimutargsynt = 'simutargsynt' in gdat.liststrgtypedata
         
-        if not 'simutargsynt' in gdat.liststrgtypedata:
+    if not gdat.boolsimutargsynt:
+        for q in gdat.refr.indxcatl:
             if gdat.refr.lablcatl[q] == 'TIC':
                 print('Constructing reference catalog %d...' % q)
                 gdat.refr.numbpntsbase[q] = catalogData[:]['Tmag'].size
         
-        #if gdat.typedata == 'simutargpartinje':
-        #    gdat.refr.numbpntsbase[q] = catalogData[:]['Tmag'].size
-        #if gdat.typedata == 'obsd':
-        #    gdat.refr.numbpntsbase[q] = catalogData[:]['Tmag'].size
-        #
-        #if gdat.typedata == 'simutargpartinje':
-        #    pass
-        #    #gdat.true.rasctarg = (gdat.maxmnumbside - 1.) / 2.
-        #    #gdat.true.decltarg = (gdat.maxmnumbside - 1.) / 2.
+    for q in gdat.refr.indxcatl:
         
+        if not gdat.boolsimutargsynt:
+            gdat.refr.numbpntsbase[q] = catalogData[:]['Tmag'].size
+            gdat.refr.numbpntsbase[q] = catalogData[:]['Tmag'].size
+        
+        if 'simutargpartinje' in gdat.liststrgtypedata:
+            gdat.true.rasctarg = (gdat.maxmnumbside - 1.) / 2.
+            gdat.true.decltarg = (gdat.maxmnumbside - 1.) / 2.
+        
+        if gdat.true.tmagneig.size > 0 or 'simutargpartsynt' in gdat.liststrgtypedata:
+            # generate neighbors within 0.5 pixels of the edges
+            gdat.true.velxneig = np.zeros(gdat.true.tmagneig.size)
+            gdat.true.velyneig = np.zeros(gdat.true.tmagneig.size)
+            gdat.refr.catlbase[q]['tmag'] = np.concatenate((np.array([gdat.true.tmagtarg]), gdat.true.tmagneig))
+            if 'simutargsynt' in gdat.liststrgtypedata:
+                gdat.refr.catlbase[q]['xpos'] = np.concatenate((np.array([gdat.true.xpostarg]), gdat.true.xposneig))
+                gdat.refr.catlbase[q]['ypos'] = np.concatenate((np.array([gdat.true.ypostarg]), gdat.true.yposneig))
+                gdat.refr.catlbase[q]['velx'] = np.concatenate((np.array([gdat.true.velxtarg]), gdat.true.velxneig))
+                gdat.refr.catlbase[q]['vely'] = np.concatenate((np.array([gdat.true.velytarg]), gdat.true.velyneig))
+            if 'simutargpartinje' in gdat.liststrgtypedata:
+                gdat.refr.catlbase[q]['rasc'] = np.concatenate((np.array([gdat.true.rasctarg]), catalogData[:]['ra']))
+                gdat.refr.catlbase[q]['decl'] = np.concatenate((np.array([gdat.true.decltarg]), catalogData[:]['dec']))
+                gdat.refr.catlbase[q]['velr'] = np.concatenate((np.array([gdat.true.velrtarg]), 0. * catalogData[:]['ra']))
+                gdat.refr.catlbase[q]['veld'] = np.concatenate((np.array([gdat.true.veldtarg]), 0. * catalogData[:]['dec']))
         else:
-                
-            if gdat.true.tmagneig.size > 0 or 'simutargpartsynt' in gdat.liststrgtypedata:
-                # generate neighbors within 0.5 pixels of the edges
-                gdat.true.velxneig = np.zeros(gdat.true.tmagneig.size)
-                gdat.true.velyneig = np.zeros(gdat.true.tmagneig.size)
-                gdat.refr.catlbase[q]['tmag'] = np.concatenate((np.array([gdat.true.tmagtarg]), gdat.true.tmagneig))
-                if 'simutargsynt' in gdat.liststrgtypedata:
-                    gdat.refr.catlbase[q]['xpos'] = np.concatenate((np.array([gdat.true.xpostarg]), gdat.true.xposneig))
-                    gdat.refr.catlbase[q]['ypos'] = np.concatenate((np.array([gdat.true.ypostarg]), gdat.true.yposneig))
-                    gdat.refr.catlbase[q]['velx'] = np.concatenate((np.array([gdat.true.velxtarg]), gdat.true.velxneig))
-                    gdat.refr.catlbase[q]['vely'] = np.concatenate((np.array([gdat.true.velytarg]), gdat.true.velyneig))
-                if 'simutargpartinje' in gdat.liststrgtypedata:
-                    gdat.refr.catlbase[q]['rasc'] = np.concatenate((np.array([gdat.true.rasctarg]), catalogData[:]['ra']))
-                    gdat.refr.catlbase[q]['decl'] = np.concatenate((np.array([gdat.true.decltarg]), catalogData[:]['dec']))
-                    gdat.refr.catlbase[q]['velr'] = np.concatenate((np.array([gdat.true.velrtarg]), 0. * catalogData[:]['ra']))
-                    gdat.refr.catlbase[q]['veld'] = np.concatenate((np.array([gdat.true.veldtarg]), 0. * catalogData[:]['dec']))
-            else:
-                if gdat.typedata == 'simutargsynt':
-                    gdat.refr.catlbase[q]['xpos'] = np.array([gdat.true.xpostarg])
-                    gdat.refr.catlbase[q]['ypos'] = np.array([gdat.true.ypostarg])
-                if gdat.typedata == 'simutargpartinje' or gdat.typedata == 'simutargpartsynt':
-                    gdat.refr.catlbase[q]['rasc'] = np.array([gdat.true.rasctarg])
-                    gdat.refr.catlbase[q]['decl'] = np.array([gdat.true.decltarg])
-                gdat.refr.catlbase[q]['tmag'] = np.array([gdat.true.tmagtarg])
-                gdat.refr.catlbase[q]['velx'] = np.array([gdat.true.velxtarg])
-                gdat.refr.catlbase[q]['vely'] = np.array([gdat.true.velytarg])
-            
-            # labels
+            if gdat.boolsimutargsynt:
+                gdat.refr.catlbase[q]['xpos'] = np.array([gdat.true.xpostarg])
+                gdat.refr.catlbase[q]['ypos'] = np.array([gdat.true.ypostarg])
+            if gdat.boolsimutargsynt or 'simutargpartinje' in gdat.liststrgtypedata:
+                gdat.refr.catlbase[q]['rasc'] = np.array([gdat.true.rasctarg])
+                gdat.refr.catlbase[q]['decl'] = np.array([gdat.true.decltarg])
+            gdat.refr.catlbase[q]['tmag'] = np.array([gdat.true.tmagtarg])
+            gdat.refr.catlbase[q]['velx'] = np.array([gdat.true.velxtarg])
+            gdat.refr.catlbase[q]['vely'] = np.array([gdat.true.velytarg])
+        
+        # labels
+        if gdat.boolsimutargsynt:
             gdat.refr.catlbase[q]['labl'] = np.empty(gdat.refr.catlbase[q]['xpos'].size, dtype=object)
             for k in np.arange(gdat.refr.catlbase[q]['labl'].size):
                 gdat.refr.catlbase[q]['labl'][k] = '%d' % k
-            
-        if gdat.typedata != 'simutargsynt':
+    
+        if not gdat.boolsimutargsynt:
             
             offs = 0
-            #if gdat.typedata == 'simutargpartinje':
+            #if gdat.boolsimutargsynt or 'simutargpartinje':
             #    offs = 1
             
             for name in gdat.refr.liststrgfeatbase[q]:
@@ -1456,12 +1473,20 @@ def init( \
         
         # estimate the counts
         for p in gdat.indxinst:
-            if gdat.liststrginst[p].startswith('TESS'):
+            if gdat.liststrginst[p].startswith('TESS') or gdat.liststrginst[p] == 'TGEO-IR':
                 offszero = 20.4
+            elif gdat.liststrginst[p] == 'TGEO-UV':
+                offszero = 24.
+            elif gdat.liststrginst[p] == 'TGEO-VIS':
+                offszero = 24.
             else:
                 print('')
                 print('')
                 print('')
+                print('p')
+                print(p)
+                print('gdat.liststrginst')
+                print(gdat.liststrginst)
                 raise Exception('gdat.liststrginst[p] undefined.')
 
             gdat.refr.catlbase[q]['cntsesti'] = 10**(-(gdat.refr.catlbase[q]['tmag'] - offszero) / 2.5)
@@ -1480,7 +1505,7 @@ def init( \
         gdat.refr.numbpntsbase[q] = gdat.refr.catlbase[q]['labl'].size    
         gdat.refr.indxpntsbase[q] = np.arange(gdat.refr.numbpntsbase[q])
             
-    if gdat.typedata != 'simutargsynt':
+    if not gdat.boolsimutargsynt:
         
         if gdat.typetarg == 'tici' or gdat.typetarg == 'toii' or gdat.typetarg == 'mast':
             # ensure that the first source is the target
@@ -1528,7 +1553,7 @@ def init( \
     print(gdat.liststrginst)
     print('Target label: %s' % gdat.labltarg) 
     print('Output folder name: %s' % gdat.strgtarg) 
-    if gdat.typedata != 'simutargsynt':
+    if not gdat.boolsimutargsynt:
         if gdat.typetarg != 'sols':
             print('RA and DEC: %g %g' % (gdat.rasctarg, gdat.decltarg))
         if gdat.typetarg == 'tici' or gdat.typetarg == 'mast':
@@ -1582,7 +1607,7 @@ def init( \
         gdat.strgtarg = '%016d' % gdat.ticitarg
 
     # construct the string describing the data configuration
-    gdat.strgcnfg = '%s_%s' % (gdat.typedata, gdat.strgtarg)
+    gdat.strgcnfg = '%s' % (gdat.strgtarg)
     
     gdat.dictindxinst = dict()
     for name in ['TESS', 'TGEO-IR', 'TGEO-VIS', 'TGEO-UV', 'ULTRASAT', 'LSST']:
@@ -1592,24 +1617,24 @@ def init( \
     
     # list of IDs for pointings (for TESS, this is the sector ID)
     gdat.listipnt = [[] for p in gdat.indxinst]
-    gdat.listtcam = [[] for p in gdat.indxinst]
-    gdat.listtccd = [[] for p in gdat.indxinst]
+    gdat.listtcam = []
+    gdat.listtccd = []
     
     gdat.dictoutp = dict()
     gdat.dictoutp['arryrflx'] = dict()
     for p in gdat.indxinst:
-        if gdat.typedata == 'simutargsynt':
+        if gdat.boolsimutargsynt:
             if 'TESS' in gdat.liststrginst:
                 gdat.listipnt[p] = np.array([1])
-                gdat.listtcam[p] = np.array([0])
-                gdat.listtccd[p] = np.array([0])
+                gdat.listtcam = np.array([0])
+                gdat.listtccd = np.array([0])
     
-            if 'TGEO-IR' in gdat.liststrginst or 'TGEO-VIS' in gdat.liststrginst:
-                gdat.listipnt[p] = np.array([80])
-                gdat.listtcam[p] = [1]
-                gdat.listtccd[p] = [1]
-            else:
-                gdat.listipnt[p] = np.array([1])
+        if 'TGEO-IR' in gdat.liststrginst or 'TGEO-VIS' in gdat.liststrginst:
+            gdat.listipnt[p] = np.array([1])
+            #gdat.listtcam = [1]
+            #gdat.listtccd = [1]
+        else:
+            gdat.listipnt[p] = np.array([1])
     
     gdat.numbpoinffim = np.empty(gdat.numbinst, dtype=int)
     gdat.listhdundataffim = [[] for p in gdat.indxinst]
@@ -1695,13 +1720,13 @@ def init( \
         gdat.numbpoinffim[p] = len(listhdundatatemp)
         gdat.indxpoinffim[p] = np.arange(gdat.numbpoinffim[p])
         gdat.listipntffim[p] = [[] for o in gdat.indxpoinffim[p]]
-        gdat.listtcamffim[p] = [[] for o in gdat.indxpoinffim[p]]
-        gdat.listtccdffim[p] = [[] for o in gdat.indxpoinffim[p]]
+        gdat.listtcamffim = [[] for o in gdat.indxpoinffim[p]]
+        gdat.listtccdffim = [[] for o in gdat.indxpoinffim[p]]
         gdat.listhdundataffim[p] = [[] for o in gdat.indxpoinffim[p]]
         for o, hdundata in enumerate(listhdundatatemp):
             gdat.listipntffim[p][o] = hdundata[0].header['SECTOR']
-            gdat.listtcamffim[p][o] = hdundata[0].header['CAMERA']
-            gdat.listtccdffim[p][o] = hdundata[0].header['CCD']
+            gdat.listtcamffim[o] = hdundata[0].header['CAMERA']
+            gdat.listtccdffim[o] = hdundata[0].header['CCD']
             gdat.listhdundataffim[p][o] = hdundata
         
             if gdat.booldiag:
@@ -1713,14 +1738,14 @@ def init( \
         indxsort = np.argsort(np.array(gdat.listipntffim[p]))
         ## copy the lists to temporary variables
         gdat.listipntffimtemp = list(gdat.listipntffim[p])
-        gdat.listtcamffimtemp = list(gdat.listtcamffim[p])
-        gdat.listtccdffimtemp = list(gdat.listtccdffim[p])
+        gdat.listtcamffimtemp = list(gdat.listtcamffim)
+        gdat.listtccdffimtemp = list(gdat.listtccdffim)
         gdat.listhdundataffimtemp = list(gdat.listhdundataffim[p])
         ## write onto the lists with the sorted order 
         for kk, indxtemp in enumerate(indxsort):
             gdat.listipntffim[p][kk] = gdat.listipntffimtemp[indxtemp]
-            gdat.listtcamffim[p][kk] = gdat.listtcamffimtemp[indxtemp]
-            gdat.listtccdffim[p][kk] = gdat.listtccdffimtemp[indxtemp]
+            gdat.listtcamffim[kk] = gdat.listtcamffimtemp[indxtemp]
+            gdat.listtccdffim[kk] = gdat.listtccdffimtemp[indxtemp]
             gdat.listhdundataffim[p][kk] = gdat.listhdundataffimtemp[indxtemp]
 
         print('gdat.listipntffim')
@@ -1771,12 +1796,18 @@ def init( \
             gdat.listtcamspoc = np.array(gdat.listtcamspoc, dtype=int)
             gdat.listtccdspoc = np.array(gdat.listtccdspoc, dtype=int)
             
+            print('gdat.listtcamspoc')
+            print(gdat.listtcamspoc)
+
             indx = np.argsort(gdat.listipntspoc)
             gdat.listipntspoc = gdat.listipntspoc[indx]
             gdat.listtcamspoc = gdat.listtcamspoc[indx]
             gdat.listtccdspoc = gdat.listtccdspoc[indx]
             
-            gdat.numbpoinspoc = gdat.listipntspoc.size
+            print('gdat.listtcamspoc')
+            print(gdat.listtcamspoc)
+
+            gdat.numbpoinspoc = gdat.listipntspoc[0].size
 
         if len(gdat.listipntspoc) > 0:
             gdat.indxtsecspoc = np.arange(gdat.numbpoinspoc)
@@ -1804,6 +1835,12 @@ def init( \
             gdat.listhdundataspoc = [[] for o in gdat.indxtsecspoc]
             gdat.indxtimegoodspoc = [[] for o in gdat.indxtsecspoc]
             for oo in gdat.indxtsecspoc:
+                print('oo')
+                print(oo)
+                print('listpathdownspoctpxf')
+                print(listpathdownspoctpxf)
+                print('gdat.listtcamspoc')
+                print(gdat.listtcamspoc)
                 gdat.listhdundataspoc[oo], gdat.indxtimegoodspoc[oo], gdat.listipntspoc[oo], gdat.listtcamspoc[oo], \
                                                                 gdat.listtccdspoc[oo] = miletos.read_tesskplr_file(listpathdownspoctpxf[oo])
                 if not np.isfinite(gdat.listhdundataspoc[oo][1].data['TIME'][gdat.indxtimegoodspoc[oo]]).all():
@@ -1817,9 +1854,6 @@ def init( \
             print(gdat.listtccdspoc)
         
         # merge SPOC TPF and FFI sector lists
-        gdat.listtcam = []
-        gdat.listtccd = []
-        
         gdat.listipntffim[p] = np.array(gdat.listipntffim[p], dtype=int)
         
         if len(gdat.listipntspoc) == 0:
@@ -1852,17 +1886,34 @@ def init( \
         print('gdat.listipntconc')
         print(gdat.listipntconc)
         
+        gdat.listtccd = []
+        gdat.listtcam = []
+        
         for k in range(len(gdat.listipntconc)):
             indx = np.where(gdat.listipntspoc == gdat.listipntconc[k])[0]
             if indx.size > 0:
-                gdat.listipnt[gdat.dictindxinst['TESS']].append(gdat.listipntspoc[indx[0]])
+                gdat.listipnt[gdat.dictindxinst['TESS']].append(gdat.listipntspoc[gdat.dictindxinstspoc['TESS']][indx[0]])
                 gdat.listtcam.append(gdat.listtcamspoc[indx[0]])
                 gdat.listtccd.append(gdat.listtccdspoc[indx[0]])
             else:
+                print('gdat.listtcamffim')
+                print(gdat.listtcamffim)
+                print('gdat.listipntconc[k]')
+                print(gdat.listipntconc[k])
                 indx = np.where(gdat.listipntffim[p] == gdat.listipntconc[k])[0]
+                print('indx')
+                print(indx)
+                print('gdat.listipntffim')
+                print(gdat.listipntffim)
+                print('gdat.dictindxinst[TESS]')
+                print(gdat.dictindxinst['TESS'])
+                print('gdat.listipnt[gdat.dictindxinst[TESS]]')
+                print(gdat.listipnt[gdat.dictindxinst['TESS']])
                 gdat.listipnt[gdat.dictindxinst['TESS']].append(gdat.listipntffim[p][indx[0]])
-                gdat.listtcam.append(gdat.listtcamffim[p][indx[0]])
-                gdat.listtccd.append(gdat.listtccdffim[p][indx[0]])
+                print('gdat.listtcam')
+                print(gdat.listtcam)
+                gdat.listtcam.append(gdat.listtcamffim[indx[0]])
+                gdat.listtccd.append(gdat.listtccdffim[indx[0]])
         
         gdat.listipnt[gdat.dictindxinst['TESS']] = np.array(gdat.listipnt[gdat.dictindxinst['TESS']])
         
@@ -1893,7 +1944,7 @@ def init( \
     for p in gdat.indxinst:
         gdat.numbpoin[p] = gdat.listipnt[p].size
     
-    if gdat.typedata != 'simutargsynt':
+    if not gdat.boolsimutargsynt:
         # Boolean flag to indicate TESS data in the "past"
         ## if False, it means the data must be simulated
         gdat.booltesspast = gdat.liststrginst[p] == 'TESS' and (gdat.listipnt[p] < gdat.ipnttesscurr).all()
@@ -1971,7 +2022,7 @@ def init( \
 
         gdat.booltpxf[p] = np.zeros(gdat.numbpoin[p], dtype=bool)
         
-        if gdat.typedata != 'simutargsynt':
+        if not gdat.boolsimutargsynt:
         
             if gdat.booltesspast:
                 if gdat.boolinptnumbside and gdat.numbside[p] != 11:
@@ -2028,7 +2079,7 @@ def init( \
             print(gdat.liststrginst[p])
             raise Exception('')
 
-        if gdat.typedata != 'simutargsynt':
+        if not gdat.boolsimutargsynt:
             if gdat.booltesspast:
                 if gdat.numbpoin[p] == 0:
                     print('No data have been retrieved for instrument %s.' % gdat.liststrginst[p])
@@ -2200,7 +2251,7 @@ def init( \
         #if gdat.typetarg == 'tici' or gdat.typetarg == 'toii' or gdat.typetarg == 'mast':
             
         #dmag = (gdat.refr.catlbase[q]['tmag'] - gdat.refr.catlbase[q]['tmag'][0]) / 
-        if gdat.typedata == 'simutargsynt':
+        if gdat.boolsimutargsynt:
             distsqrd = (gdat.refr.catlbase[q]['xpos'] - gdat.refr.catlbase[q]['xpos'][0])**2  + (gdat.refr.catlbase[q]['ypos'] - gdat.refr.catlbase[q]['ypos'][0])**2
         else:
             distsqrd = (gdat.refr.catlbase[q]['rasc'] - gdat.refr.catlbase[q]['rasc'][0])**2  + (gdat.refr.catlbase[q]['decl'] - gdat.refr.catlbase[q]['decl'][0])**2
@@ -2304,7 +2355,7 @@ def init( \
     # Boolean flag to indicate whether there is a reference time-series
     gdat.boolrefrtser = [[[] for o in gdat.indxtsec[p]] for p in gdat.indxinst]
     if gdat.refrarrytser is None:
-        if gdat.typedata == 'simutargsynt':
+        if gdat.boolsimutargsynt:
             for p in gdat.indxinst:
                 for o in gdat.indxtsec[p]:
                     gdat.boolrefrtser[p][o] = False
@@ -2422,7 +2473,7 @@ def init( \
         
         print(gdat.liststrginst[p])
         print('Pixel size: %g arcseconds' % gdat.sizepixl[p])
-        if gdat.typedata.startswith('simu'):
+        if gdat.liststrgtypedata[p].startswith('simu'):
             if gdat.liststrginst[p].startswith('LSST'):
                 gdat.latiobvt = -30.24506
                 gdat.longobvt = -70.74913
@@ -2440,30 +2491,30 @@ def init( \
             strgchun = retr_strgchun(gdat, p, o)
             updt_strgsave(gdat, strgchun, 1, 1, p, o)
             
-            if gdat.typedata != 'simutargsynt':
+            if not gdat.boolsimutargsynt:
                 print(gdat.listlablpoin[p][o])
                 if gdat.liststrginst[p] == 'TESS':
                     print('Camera: %d' % gdat.listtcam[o])
                     print('CCD: %d' % gdat.listtccd[o])
             
-            if gdat.typedata != 'simutargsynt':
+            if not gdat.boolsimutargsynt:
                 if gdat.booltpxf[p][o]:
                     print('TPF data')
                 else:
                     print('FFI data')
             
             gdat.liststrgmodl = ['fitt']
-            if gdat.typedata.startswith('simu'):
+            if gdat.liststrgtypedata[p].startswith('simu'):
                 gdat.liststrgmodl += ['true']
             
             if gdat.boolplotcntp or gdat.boolplotrflx or gdat.boolanim:
-                if gdat.typedata == 'simutargsynt' or gdat.liststrginst[p] != 'TESS':
+                if gdat.boolsimutargsynt or gdat.liststrginst[p] != 'TESS':
                     gdat.strgtitlcntpplot = '%s, %s, %s' % (gdat.labltarg, gdat.liststrginst[p], gdat.listlablpoin[p][o])
                 else:
                     gdat.strgtitlcntpplot = '%s, %s, Sector %d, Cam %d, CCD %d' % (gdat.labltarg, gdat.liststrginst[p], \
                                                                                                gdat.listipnt[p][o], gdat.listtcam[o], gdat.listtccd[o])
             
-            if gdat.typedata == 'simutargsynt' or gdat.typedata == 'simutargpartsynt' or gdat.typedata == 'simutargpartinje':
+            if gdat.boolsimutargsynt or gdat.liststrgtypedata[p] == 'simutargpartsynt' or gdat.liststrgtypedata[p] == 'simutargpartinje':
                 if gdat.true.typepsfnshap == 'gauscirc':
                     gdat.true.parapsfn = np.array([gdat.true.sigmpsfn])
                 if gdat.true.typepsfnshap == 'gauselli':
@@ -2473,7 +2524,7 @@ def init( \
                 if gdat.typecade[p][o] is not None and gdat.timeexpo[p][o] is not None:
                     raise Exception('')
 
-            if gdat.typedata == 'simutargsynt' or gdat.typedata == 'simutargpartsynt':
+            if gdat.boolsimutargsynt or gdat.liststrgtypedata[p] == 'simutargpartsynt':
                 if gdat.liststrginst[p] == 'TESS' or gdat.liststrginst[p].startswith('TGEO') or gdat.liststrginst[p] == 'ULTRASAT' or gdat.liststrginst[p] == 'TESSCam':
                     if gdat.typecade[p][o] == '2min':
                         gdat.timeexpo[p][o] = 2. / 60. / 24. # [days]
@@ -2499,7 +2550,7 @@ def init( \
                         gdat.listtime[p][o] = 2458119.5 + np.arange(0., 1. / 24., gdat.timeexpo[p][o])
                 
             # load the list of WCS objects for each pointing
-            if (gdat.typedata == 'simutargpartinje' or gdat.typedata == 'obsd' or gdat.typedata == 'simutargpartsynt') and \
+            if (gdat.liststrgtypedata[p] == 'simutargpartinje' or gdat.liststrgtypedata[p] == 'obsd' or gdat.liststrgtypedata[p] == 'simutargpartsynt') and \
                                                  (gdat.booltesspast or gdat.liststrginst[p] == 'LSST'):
             
                 if gdat.liststrginst[p] == 'TESS' and gdat.booltpxf[p][o]:
@@ -2529,7 +2580,7 @@ def init( \
                 
             else:
                 
-                path = gdat.pathdatatarg + 'cntpdata_%s_%s_%s.fits' % (gdat.typedata, gdat.liststrginst[p], strgchun)
+                path = gdat.pathdatatarg + 'cntpdata_%s_%s_%s.fits' % (gdat.liststrgtypedata[p], gdat.liststrginst[p], strgchun)
                 if not os.path.exists(path):
                     # Create a new WCS object.  The number of axes must be set
                     print('Constructing a WCS object with pointing at RA, DEC = (%g, %g)...' % (gdat.rasctarg, gdat.decltarg))
@@ -2567,7 +2618,7 @@ def init( \
             ## reference catalogs
             for q in gdat.refr.indxcatl:
                 
-                if gdat.typedata != 'simutargsynt':
+                if not gdat.boolsimutargsynt:
                     gdat.refr.cequ[q][p][o] = np.empty((gdat.refr.catl[q][p][o]['rasc'].size, 2))
                     gdat.refr.cequ[q][p][o][:, 0] = gdat.refr.catl[q][p][o]['rasc']
                     gdat.refr.cequ[q][p][o][:, 1] = gdat.refr.catl[q][p][o]['decl']
@@ -2594,7 +2645,7 @@ def init( \
                     if len(gdat.indxpntswthnbrgt[0][p][o]) == 0:
                         raise Exception('')
 
-            if gdat.typedata == 'simutargsynt' or gdat.typedata == 'simutargpartsynt':
+            if gdat.boolsimutargsynt or gdat.liststrgtypedata[p] == 'simutargpartsynt':
                 
                 if not os.path.exists(path):
                     print('Simulating the images...')
@@ -2696,7 +2747,7 @@ def init( \
                             raise Exception('Time dimension of the count map read from disk does not match that of the time array.')
                                 
 
-            if gdat.typedata == 'simutargpartinje' or gdat.typedata == 'obsd':
+            if gdat.liststrgtypedata[p] == 'simutargpartinje' or gdat.liststrgtypedata[p] == 'obsd':
                 
                 # get data
                 ## read the FITS files
@@ -2804,7 +2855,7 @@ def init( \
 
             #raise Exception('')
 
-            if gdat.typedata == 'simutargpartinje':
+            if gdat.liststrgtypedata[p] == 'simutargpartinje':
                 
                 # generate data
                 gdat.cntpmodlsimu = np.empty((gdat.numbside[p], gdat.numbside[p], gdat.numbtime[p][o]))
@@ -2884,7 +2935,7 @@ def init( \
                 for typecntpscal in gdat.listtypecntpscal:
                     plot_cntp(gdat, gdat.cntpdatasexp, p, o, typecntpscal, gdat.pathvisutargsexp, 'cntpdatasexp_nopm', 'refr', strgtitl=strgtitl)
                 
-            if gdat.typedata != 'simutargsynt':
+            if not gdat.boolsimutargsynt:
                 
                 if gdat.booldiag:
                     for name in ['rasc', 'decl']:
@@ -3068,10 +3119,10 @@ def init( \
             gdat.fitt.catl = {}
         
             ## fitting catalog
-            if gdat.typedata == 'simutargsynt':
+            if gdat.boolsimutargsynt:
                 for name in ['xpos', 'ypos', 'cnts', 'labl']:
                     gdat.fitt.catl[name] = gdat.refr.catl[0][p][o][name]
-            if gdat.typedata != 'simutargsynt':
+            if not gdat.boolsimutargsynt:
                 
                 # copy the first reference catalog to the fitting catalog
                 for strgfeat in gdat.refr.liststrgfeat[q]:
@@ -3113,7 +3164,7 @@ def init( \
         
             gdat.fitt.liststrgfeat = gdat.refr.liststrgfeat[q]
             
-            if gdat.typedata != 'simutargsynt':
+            if not gdat.boolsimutargsynt:
                 if gdat.booldiag:
                     for name in ['rasc', 'decl']:
                         if not np.isfinite(gdat.fitt.catl[name]).all():
@@ -3506,7 +3557,7 @@ def init( \
                 # time indices to be included in the animation
                 gdat.indxtimeanim = np.linspace(0., gdat.numbtime[p][o] - 1., numbplotanim).astype(int)
                 # get time string
-                if gdat.typedata != 'simutargsynt':
+                if not gdat.boolsimutargsynt:
                     objttime = astropy.time.Time(gdat.listtime[p][o], format='jd', scale='utc')#, out_subfmt='date_hm')
                     listtimelabl = objttime.iso
                 else:
