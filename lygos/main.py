@@ -1633,8 +1633,6 @@ def init( \
             gdat.listipnt[p] = np.array([1])
             #gdat.listtcam = [1]
             #gdat.listtccd = [1]
-        else:
-            gdat.listipnt[p] = np.array([1])
     
     gdat.numbpoinffim = np.empty(gdat.numbinst, dtype=int)
     gdat.listhdundataffim = [[] for p in gdat.indxinst]
