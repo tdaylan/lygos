@@ -784,6 +784,9 @@ def init( \
          liststrgtypedata=None, \
          
          # selected TESS sectors
+         listtsecsele=None, \
+    
+         # selected pointings
          listipntsele=None, \
     
          # data
@@ -1715,45 +1718,39 @@ def init( \
                 print('Reading from %s...' % path)
                 listhdundatatemp.append(astropy.io.fits.open(path))
         
-        gdat.numbpoinffim[p] = len(listhdundatatemp)
-        gdat.indxpoinffim[p] = np.arange(gdat.numbpoinffim[p])
-        gdat.listipntffim[p] = [[] for o in gdat.indxpoinffim[p]]
-        gdat.listtcamffim = [[] for o in gdat.indxpoinffim[p]]
-        gdat.listtccdffim = [[] for o in gdat.indxpoinffim[p]]
-        gdat.listhdundataffim[p] = [[] for o in gdat.indxpoinffim[p]]
+        gdat.listhdundataffimtess = []
+        gdat.listtsecffim = []
+        gdat.listtcamffim = []
+        gdat.listtccdffim = []
         for o, hdundata in enumerate(listhdundatatemp):
-            gdat.listipntffim[p][o] = hdundata[0].header['SECTOR']
-            gdat.listtcamffim[o] = hdundata[0].header['CAMERA']
-            gdat.listtccdffim[o] = hdundata[0].header['CCD']
-            gdat.listhdundataffim[p][o] = hdundata
-        
-            if gdat.booldiag:
-                if isinstance(gdat.listhdundataffim[p][o], np.ndarray):
-                    raise Exception('')
+            gdat.listtsecffim.append(hdundata[0].header['SECTOR'])
+            gdat.listtcamffim.append(hdundata[0].header['CAMERA'])
+            gdat.listtccdffim.append(hdundata[0].header['CCD'])
+            gdat.listhdundataffimtess.append(hdundata)
         
         # sort the poiting ID, Camera, CCD, and HDU lists according to pointing ID
         ## get an array holding the indices that would sort
-        indxsort = np.argsort(np.array(gdat.listipntffim[p]))
+        indxsort = np.argsort(np.array(gdat.listtsecffim))
         ## copy the lists to temporary variables
-        gdat.listipntffimtemp = list(gdat.listipntffim[p])
+        gdat.listtsecffimtemp = list(gdat.listtsecffim)
         gdat.listtcamffimtemp = list(gdat.listtcamffim)
         gdat.listtccdffimtemp = list(gdat.listtccdffim)
-        gdat.listhdundataffimtemp = list(gdat.listhdundataffim[p])
+        gdat.listhdundataffimtemp = list(gdat.listhdundataffimtess)
         ## write onto the lists with the sorted order 
         for kk, indxtemp in enumerate(indxsort):
-            gdat.listipntffim[p][kk] = gdat.listipntffimtemp[indxtemp]
+            gdat.listtsecffim[kk] = gdat.listtsecffimtemp[indxtemp]
             gdat.listtcamffim[kk] = gdat.listtcamffimtemp[indxtemp]
             gdat.listtccdffim[kk] = gdat.listtccdffimtemp[indxtemp]
-            gdat.listhdundataffim[p][kk] = gdat.listhdundataffimtemp[indxtemp]
+            gdat.listhdundataffimtess[kk] = gdat.listhdundataffimtemp[indxtemp]
 
-        print('gdat.listipntffim')
-        print(gdat.listipntffim)
+        print('gdat.listtsecffim')
+        print(gdat.listtsecffim)
         print('gdat.listtcamffim')
         print(gdat.listtcamffim)
         print('gdat.listtccdffim')
         print(gdat.listtccdffim)
         
-        gdat.listipntspoc = []
+        gdat.listtsecspoc = []
         gdat.listtcamspoc = []
         gdat.listtccdspoc = []
         print('boolutiltpxf')
@@ -1782,7 +1779,7 @@ def init( \
 
                     if boolgood and listprodspoctemp[a]['description'] == 'Target pixel files':
                         tsec = int(listprodspoctemp[a]['obs_id'].split('-')[1][1:])
-                        gdat.listipntspoc.append(tsec) 
+                        gdat.listtsecspoc.append(tsec) 
                         
                         print('temp: assigning dummy Cam and CCD to the target for this sector.')
                         gdat.listtcamspoc.append(-1) 
@@ -1790,24 +1787,24 @@ def init( \
                         
                         listprodspoc.append(listprodspoctemp)
             
-            gdat.listipntspoc = np.array(gdat.listipntspoc, dtype=int)
+            gdat.listtsecspoc = np.array(gdat.listtsecspoc, dtype=int)
             gdat.listtcamspoc = np.array(gdat.listtcamspoc, dtype=int)
             gdat.listtccdspoc = np.array(gdat.listtccdspoc, dtype=int)
             
             print('gdat.listtcamspoc')
             print(gdat.listtcamspoc)
 
-            indx = np.argsort(gdat.listipntspoc)
-            gdat.listipntspoc = gdat.listipntspoc[indx]
+            indx = np.argsort(gdat.listtsecspoc)
+            gdat.listtsecspoc = gdat.listtsecspoc[indx]
             gdat.listtcamspoc = gdat.listtcamspoc[indx]
             gdat.listtccdspoc = gdat.listtccdspoc[indx]
             
             print('gdat.listtcamspoc')
             print(gdat.listtcamspoc)
 
-            gdat.numbpoinspoc = gdat.listipntspoc[0].size
+            gdat.numbpoinspoc = gdat.listtsecspoc[0].size
 
-        if len(gdat.listipntspoc) > 0:
+        if len(gdat.listtsecspoc) > 0:
             gdat.indxtsecspoc = np.arange(gdat.numbpoinspoc)
             
             # download data from MAST
@@ -1839,101 +1836,85 @@ def init( \
                 print(listpathdownspoctpxf)
                 print('gdat.listtcamspoc')
                 print(gdat.listtcamspoc)
-                gdat.listhdundataspoc[oo], gdat.indxtimegoodspoc[oo], gdat.listipntspoc[oo], gdat.listtcamspoc[oo], \
+                gdat.listhdundataspoc[oo], gdat.indxtimegoodspoc[oo], gdat.listtsecspoc[oo], gdat.listtcamspoc[oo], \
                                                                 gdat.listtccdspoc[oo] = miletos.read_tesskplr_file(listpathdownspoctpxf[oo])
                 if not np.isfinite(gdat.listhdundataspoc[oo][1].data['TIME'][gdat.indxtimegoodspoc[oo]]).all():
                     raise Exception('')
             
-            print('gdat.listipntspoc')
-            print(gdat.listipntspoc)
+            print('gdat.listtsecspoc')
+            print(gdat.listtsecspoc)
             print('gdat.listtcamspoc')
             print(gdat.listtcamspoc)
             print('gdat.listtccdspoc')
             print(gdat.listtccdspoc)
         
         # merge SPOC TPF and FFI sector lists
-        gdat.listipntffim[p] = np.array(gdat.listipntffim[p], dtype=int)
+        gdat.listtsecffim = np.array(gdat.listtsecffim, dtype=int)
         
-        if len(gdat.listipntspoc) == 0:
-            gdat.listipntconc = gdat.listipntffim[p]
+        if len(gdat.listtsecspoc) == 0:
+            gdat.listtsecconc = gdat.listtsecffim
         else:
-            gdat.listipntconc = np.unique(np.concatenate((gdat.listipntffim[p], gdat.listipntspoc), dtype=int))
+            gdat.listtsecconc = np.unique(np.concatenate((gdat.listtsecffim, gdat.listtsecspoc), dtype=int))
         
-        if gdat.listipntsele is not None:
+        if gdat.listtsecsele is not None:
             
-            if isinstance(gdat.listipntsele, list):
-                gdat.listipntsele = np.array(gdat.listipntsele)
+            if isinstance(gdat.listtsecsele, list):
+                gdat.listtsecsele = np.array(gdat.listtsecsele)
 
             if gdat.booldiag:
-                if np.setdiff1d(gdat.listipntsele, gdat.listipntconc).size > 0:
+                if np.setdiff1d(gdat.listtsecsele, gdat.listtsecconc).size > 0:
                     print('')
                     print('')
                     print('')
-                    print('gdat.listipntsele')
-                    print(gdat.listipntsele)
-                    print('gdat.listipntconc')
-                    print(gdat.listipntconc)
+                    print('gdat.listtsecsele')
+                    print(gdat.listtsecsele)
+                    print('gdat.listtsecconc')
+                    print(gdat.listtsecconc)
                     #raise Exception
-                    print('Warning!! gdat.listipntsele has a sector not available.')
+                    print('Warning!! gdat.listtsecsele has a sector not available.')
 
             print('Taking only selected sectors...')
-            print('gdat.listipntsele')
-            print(gdat.listipntsele)
-            gdat.listipntconc = [tsec for tsec in gdat.listipntconc if tsec in gdat.listipntsele]
+            print('gdat.listtsecsele')
+            print(gdat.listtsecsele)
+            gdat.listtsecconc = [tsec for tsec in gdat.listtsecconc if tsec in gdat.listtsecsele]
             
-        print('gdat.listipntconc')
-        print(gdat.listipntconc)
+        print('gdat.listtsecconc')
+        print(gdat.listtsecconc)
         
         gdat.listtccd = []
         gdat.listtcam = []
         
-        for k in range(len(gdat.listipntconc)):
-            indx = np.where(gdat.listipntspoc == gdat.listipntconc[k])[0]
+        for k in range(len(gdat.listtsecconc)):
+            indx = np.where(gdat.listtsecspoc == gdat.listtsecconc[k])[0]
             if indx.size > 0:
-                gdat.listipnt[gdat.dictindxinst['TESS']].append(gdat.listipntspoc[gdat.dictindxinstspoc['TESS']][indx[0]])
+                gdat.listtsec.append(gdat.listtsecspoc[indx[0]])
                 gdat.listtcam.append(gdat.listtcamspoc[indx[0]])
                 gdat.listtccd.append(gdat.listtccdspoc[indx[0]])
             else:
                 print('gdat.listtcamffim')
                 print(gdat.listtcamffim)
-                print('gdat.listipntconc[k]')
-                print(gdat.listipntconc[k])
-                indx = np.where(gdat.listipntffim[p] == gdat.listipntconc[k])[0]
+                print('gdat.listtsecconc[k]')
+                print(gdat.listtsecconc[k])
+                indx = np.where(gdat.listtsecffim[p] == gdat.listtsecconc[k])[0]
                 print('indx')
                 print(indx)
-                print('gdat.listipntffim')
-                print(gdat.listipntffim)
-                print('gdat.dictindxinst[TESS]')
-                print(gdat.dictindxinst['TESS'])
-                print('gdat.listipnt[gdat.dictindxinst[TESS]]')
-                print(gdat.listipnt[gdat.dictindxinst['TESS']])
-                gdat.listipnt[gdat.dictindxinst['TESS']].append(gdat.listipntffim[p][indx[0]])
+                print('gdat.listtsecffim')
+                print(gdat.listtsecffim)
+                gdat.listtsec.append(gdat.listtsecffim[p][indx[0]])
                 print('gdat.listtcam')
                 print(gdat.listtcam)
                 gdat.listtcam.append(gdat.listtcamffim[indx[0]])
                 gdat.listtccd.append(gdat.listtccdffim[indx[0]])
         
-        gdat.listipnt[gdat.dictindxinst['TESS']] = np.array(gdat.listipnt[gdat.dictindxinst['TESS']])
-        
-        print('gdat.listipnt')
-        print(gdat.listipnt)
-        
-        if gdat.booldiag:
-            for o in range(len(gdat.listipnt[gdat.dictindxinst['TESS']])):
-                print('gdat.listipnt[gdat.dictindxinst[TESS]][o]')
-                print(gdat.listipnt[gdat.dictindxinst['TESS']][o])
-                
-                if gdat.listipnt[gdat.dictindxinst['TESS']][o].size == 0:
-                    print('')
-                    print('')
-                    print('')
-                    print('')
-                    raise Exception('')
-        
+        gdat.listtsec = np.array(gdat.listtsec)
         gdat.listtcam = np.array(gdat.listtcam)
         gdat.listtccd = np.array(gdat.listtccd)
                 
     for p in gdat.indxinst:
+        
+        if gdat.liststrginst[p] == 'TESS':
+            gdat.listtsec[p] = gdat.listtsec
+
         if isinstance(gdat.listipnt[p], list):
             gdat.listipnt[p] = np.array(gdat.listipnt[p], dtype=int)
 
