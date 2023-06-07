@@ -1881,6 +1881,7 @@ def init( \
         print('gdat.listtsecconc')
         print(gdat.listtsecconc)
         
+        gdat.listtsec = []
         gdat.listtccd = []
         gdat.listtcam = []
         
