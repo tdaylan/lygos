@@ -1896,12 +1896,12 @@ def init( \
                 print(gdat.listtcamffim)
                 print('gdat.listtsecconc[k]')
                 print(gdat.listtsecconc[k])
-                indx = np.where(gdat.listtsecffim[p] == gdat.listtsecconc[k])[0]
+                indx = np.where(gdat.listtsecffim == gdat.listtsecconc[k])[0]
                 print('indx')
                 print(indx)
                 print('gdat.listtsecffim')
                 print(gdat.listtsecffim)
-                gdat.listtsec.append(gdat.listtsecffim[p][indx[0]])
+                gdat.listtsec.append(gdat.listtsecffim[indx[0]])
                 print('gdat.listtcam')
                 print(gdat.listtcam)
                 gdat.listtcam.append(gdat.listtcamffim[indx[0]])
@@ -1914,7 +1914,7 @@ def init( \
     for p in gdat.indxinst:
         
         if gdat.liststrginst[p] == 'TESS':
-            gdat.listtsec[p] = gdat.listtsec
+            gdat.listipnt[p] = gdat.listtsec
 
         if isinstance(gdat.listipnt[p], list):
             gdat.listipnt[p] = np.array(gdat.listipnt[p], dtype=int)
