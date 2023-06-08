@@ -1577,11 +1577,6 @@ def init( \
     if gdat.pathtarg is None:
         gdat.pathtarg = gdat.pathbase + '%s%s%s/' % (gdat.strgclus, gdat.strgtarg, gdat.strgruns)
     
-    # TESS-specific
-    ## current pointing ID of TESS
-    # temp: fix this
-    gdat.ipnttesscurr = 155
-
     gdat.pathdatatarg = gdat.pathtarg + 'data/'
     gdat.pathvisutarg = gdat.pathtarg + 'visuals/'
     gdat.pathclus = gdat.pathbase + '%s' % gdat.strgclus
@@ -1637,12 +1632,8 @@ def init( \
             #gdat.listtcam = [1]
             #gdat.listtccd = [1]
     
-    gdat.numbpoinffim = np.empty(gdat.numbinst, dtype=int)
-    gdat.listhdundataffim = [[] for p in gdat.indxinst]
-    gdat.listipntffim = [[] for p in gdat.indxinst]
     gdat.listtcamffim = [[] for p in gdat.indxinst]
     gdat.listtccdffim = [[] for p in gdat.indxinst]
-    gdat.indxpoinffim = [[] for p in gdat.indxinst]
     
     booltessanyy = False
     for p in gdat.indxinst:
@@ -1924,25 +1915,32 @@ def init( \
     for p in gdat.indxinst:
         gdat.numbpoin[p] = gdat.listipnt[p].size
     
-    if not gdat.boolsimutargsynt:
+    # TESS-specific
+    if booltessanyy:
+        
+        gdat.dictoutp['listtsec'] = gdat.listtsec
+        gdat.dictoutp['listtcam'] = gdat.listtcam
+        gdat.dictoutp['listtccd'] = gdat.listtccd
+        
+        ## current pointing ID of TESS
+        # temp: automatize this
+        gdat.tseccurr = 65
+
+        if gdat.booldiag:
+            if len(gdat.listtsec) != len(gdat.listtcam):
+                print('')
+                print('')
+                print('')
+                print('gdat.listipnt[p]')
+                print(gdat.listipnt[p])
+                print('gdat.listtcam')
+                print(gdat.listtcam)
+                raise Exception('len(gdat.listipnt[p]) != len(gdat.listtcam)')
+
         # Boolean flag to indicate TESS data in the "past"
         ## if False, it means the data must be simulated
-        gdat.booltesspast = gdat.liststrginst[p] == 'TESS' and (gdat.listipnt[p] < gdat.ipnttesscurr).all()
-        if gdat.booltesspast:
-            gdat.dictoutp['listipnt'] = gdat.listipnt
-            gdat.dictoutp['listtcam'] = gdat.listtcam
-            gdat.dictoutp['listtccd'] = gdat.listtccd
-            if gdat.booldiag:
-                if len(gdat.listipnt[p]) != len(gdat.listtcam):
-                    print('')
-                    print('')
-                    print('')
-                    print('gdat.listipnt[p]')
-                    print(gdat.listipnt[p])
-                    print('gdat.listtcam')
-                    print(gdat.listtcam)
-                    raise Exception('len(gdat.listipnt[p]) != len(gdat.listtcam)')
-
+        gdat.booltesspast = gdat.listtsec < gdat.tseccurr
+            
     if gdat.boolterm:
         return gdat.dictoutp
 
@@ -2004,23 +2002,27 @@ def init( \
         
         if not gdat.boolsimutargsynt:
         
-            if gdat.booltesspast:
+            if gdat.booltesspast[p]:
                 if gdat.boolinptnumbside and gdat.numbside[p] != 11:
                     print('Will not be using TPFs since number of pixels along a side is not 11.')
                 else:
                     # determine whether sectors have TPFs
-                    gdat.booltpxf[p] = miletos.retr_booltpxf(gdat.listipnt[p], gdat.listipntspoc)
+                    gdat.booltpxf[p] = miletos.retr_booltpxf(gdat.listipnt[p], gdat.listtsecspoc)
 
             if gdat.booldiag:
-                if not gdat.booltesspast:
+                if not gdat.booltesspast[p] and gdat.liststrgtypedata[p] == 'obsd':
                     print('')
                     print('')
                     print('')
                     print('gdat.listipnt[p]')
                     print(gdat.listipnt[p])
-                    print('gdat.ipnttesscurr')
-                    print(gdat.ipnttesscurr)
-                    raise Exception('gdat.booltesspast is False.')
+                    print('gdat.tseccurr')
+                    print(gdat.tseccurr)
+                    print('gdat.liststrginst[p]')
+                    print(gdat.liststrginst[p])
+                    print('gdat.liststrgtypedata[p]')
+                    print(gdat.liststrgtypedata[p])
+                    raise Exception('gdat.booltesspast[p] is False, so the data must be simulated.')
 
                 for o in gdat.indxtsec[p]:
                     if gdat.booltpxf[p][o]:
@@ -2060,7 +2062,7 @@ def init( \
             raise Exception('')
 
         if not gdat.boolsimutargsynt:
-            if gdat.booltesspast:
+            if gdat.booltesspast[p]:
                 if gdat.numbpoin[p] == 0:
                     print('No data have been retrieved for instrument %s.' % gdat.liststrginst[p])
                 else:
@@ -2448,7 +2450,8 @@ def init( \
         plt.close()
             
         gdat.funcintpepic = scipy.interpolate.interp2d(gdat.xposepic, gdat.yposepic, gdat.imagepic, kind='cubic', fill_value=0.)
-            
+    
+    gdat.dictoutp['listipnt'] = [[] for p in gdat.indxinst]
     for p in gdat.indxinst:
         
         print(gdat.liststrginst[p])
@@ -2531,16 +2534,29 @@ def init( \
                 
             # load the list of WCS objects for each pointing
             if (gdat.liststrgtypedata[p] == 'simutargpartinje' or gdat.liststrgtypedata[p] == 'obsd' or gdat.liststrgtypedata[p] == 'simutargpartsynt') and \
-                                                 (gdat.booltesspast or gdat.liststrginst[p] == 'LSST'):
+                                                 (gdat.booltesspast[p] or gdat.liststrginst[p] == 'LSST'):
             
-                if gdat.liststrginst[p] == 'TESS' and gdat.booltpxf[p][o]:
-                    gdat.listhdundata[p][o] = gdat.listhdundataspoc[np.where(gdat.listipnt[p][o] == gdat.listipntspoc)[0][0]]
+                if gdat.liststrginst[p] == 'TESS':
+                    if gdat.booltpxf[p][o]:
+                        print('p, o')
+                        print(p, o)
+                        print('gdat.listhdundata[p][o]')
+                        print(gdat.listhdundata[p][o])
+                        print('gdat.listipnt[p][o]')
+                        print(gdat.listipnt[p][o])
+                        print('gdat.listhdundataspoc')
+                        print(gdat.listhdundataspoc)
+                        print('np.where(gdat.listipnt[p][o] == gdat.listtsecspoc)[0][0]')
+                        print(np.where(gdat.listipnt[p][o] == gdat.listtsecspoc)[0][0])
+                        gdat.listhdundata[p][o] = gdat.listhdundataspoc[np.where(gdat.listipnt[p][o] == gdat.listtsecspoc)[0][0]]
+                    else:
+                        gdat.listhdundata[p][o] = gdat.listhdundataffimtess[np.where(gdat.listipnt[p][o] == gdat.listtsecffim)[0][0]]
                 else:
                     if gdat.booldiag:
-                        if isinstance(gdat.listhdundataffim[p][o], np.ndarray):
+                        if isinstance(gdat.listhdundataffimtess[o], np.ndarray):
                             raise Exception('')
 
-                    gdat.listhdundata[p][o] = gdat.listhdundataffim[p][np.where(gdat.listipnt[p][o] == gdat.listipntffim[p])[0][0]]
+                    gdat.listhdundata[p][o] = gdat.listhdundataffimothr[np.where(gdat.listipnt[p][o] == gdat.listtsecffim[p])[0][0]]
                 
                 if gdat.booldiag:
                     
@@ -2754,7 +2770,7 @@ def init( \
                                                             gdat.listhdundata[p][o][1].data['FLUX_BKG']).swapaxes(0, 2).swapaxes(0, 1)
                 
                 if gdat.booltpxf[p][o]:
-                    #indxtsectemp = np.where(gdat.listipnt[p][o] == gdat.listipntspoc)[0][0]
+                    #indxtsectemp = np.where(gdat.listipnt[p][o] == gdat.listtsecspoc)[0][0]
                     #gdat.listtime[p][o] = gdat.listtime[p][o][gdat.indxtimegoodspoc[indxtsectemp]]
                     #gdat.cntpdata = gdat.cntpdata[:, :, gdat.indxtimegoodspoc[indxtsectemp]]
 
@@ -3042,7 +3058,7 @@ def init( \
                         plt.close()
             
             gdat.quat = None
-            if gdat.liststrginst[p] == 'TESS' and gdat.listipnt[p][o] < gdat.ipnttesscurr:
+            if gdat.liststrginst[p] == 'TESS' and gdat.listipnt[p][o] < gdat.tseccurr:
                 gdat.quat = np.zeros((gdat.numbtime[p][o], 3))
                 #if len(os.listdir(gdat.pathcbvs)) == 0 and gdat.boolplotquat:
                 if gdat.boolplotquat:
@@ -3993,14 +4009,11 @@ def init( \
                 gdat.dictoutp['nois%s%s%s' % (gdat.liststrginst[p], strgchun, nameanls)] = gdat.listnois[p][o][e][1, 1]
                 gdat.dictoutp['arryrflx'][nameanls][p][o] = gdat.fitt.arrytser[p][o][e][1][1][:, :, 0]
         
+        gdat.dictoutp['listipnt'][p] = gdat.listipnt[p]
     if gdat.booldiag:
         for p in gdat.indxinst:
             for e in gdat.indxanls:
                 nameanls = gdat.listnameanls[e]
-                print('len(gdat.dictoutp[arryrflx][nameanls][p])')
-                print(len(gdat.dictoutp['arryrflx'][nameanls][p]))
-                print('gdat.dictoutp[listipnt][p]')
-                summgene(gdat.dictoutp['listipnt'][p])
                 if len(gdat.dictoutp['arryrflx'][nameanls][p]) != len(gdat.dictoutp['listipnt'][p]):
                     print('')
                     print('')
