@@ -339,7 +339,7 @@ def plot_lcurcomp(gdat, lcurmodl, stdvlcurmodl, k, p, o, strgchun, strgplot, tim
         stdvlcurmodl = stdvlcurmodl[indxtimelimt]
         lcurmodl = lcurmodl[indxtimelimt]
 
-    nameplot = 'tser%scomp_%s_s%03d' % (gdat.strgnorm, strgplot, k)
+    nameplot = 'tser%scomp_%s_Component%02d' % (gdat.strgnorm, strgplot, k)
     path = retr_pathvisu(gdat, gdat.pathvisutarg, nameplot, indxtzom=indxtzom)
     
     # skip the plot if it has been made before
@@ -436,7 +436,7 @@ def plot_lcur(gdat, lcurmodl, stdvlcurmodl, k, p, o, strgchun, strgplot, cdpp=No
         stdvlcurmodl = stdvlcurmodl[indxtimelimt]
         lcurmodl = lcurmodl[indxtimelimt]
 
-    nameplot = 'tser%s_%s_s%03d' % (gdat.strgnorm, strgplot, k)
+    nameplot = 'tser%s_%s_Component%02d' % (gdat.strgnorm, strgplot, k)
     path = retr_pathvisu(gdat, gdat.pathvisutarg, nameplot, indxtzom=indxtzom)
     
     # skip the plot if it has been made before
@@ -1793,7 +1793,7 @@ def init( \
             print('gdat.listtcamspoc')
             print(gdat.listtcamspoc)
 
-            gdat.numbpoinspoc = gdat.listtsecspoc[0].size
+            gdat.numbpoinspoc = gdat.listtsecspoc.size
 
         if len(gdat.listtsecspoc) > 0:
             gdat.indxtsecspoc = np.arange(gdat.numbpoinspoc)
@@ -1829,16 +1829,22 @@ def init( \
                 print(gdat.listtcamspoc)
                 gdat.listhdundataspoc[oo], gdat.indxtimegoodspoc[oo], gdat.listtsecspoc[oo], gdat.listtcamspoc[oo], \
                                                                 gdat.listtccdspoc[oo] = miletos.read_tesskplr_file(listpathdownspoctpxf[oo])
+                
+                print('gdat.listhdundataspoc[oo]')
+                print(gdat.listhdundataspoc[oo])
+
                 if not np.isfinite(gdat.listhdundataspoc[oo][1].data['TIME'][gdat.indxtimegoodspoc[oo]]).all():
                     raise Exception('')
             
+            print('gdat.listhdundataspoc')
+            print(gdat.listhdundataspoc)
             print('gdat.listtsecspoc')
             print(gdat.listtsecspoc)
             print('gdat.listtcamspoc')
             print(gdat.listtcamspoc)
             print('gdat.listtccdspoc')
             print(gdat.listtccdspoc)
-        
+
         # merge SPOC TPF and FFI sector lists
         gdat.listtsecffim = np.array(gdat.listtsecffim, dtype=int)
         
@@ -2538,18 +2544,6 @@ def init( \
             
                 if gdat.liststrginst[p] == 'TESS':
                     if gdat.booltpxf[p][o]:
-                        print('p, o')
-                        print(p, o)
-                        print('gdat.listhdundata[p][o]')
-                        print(gdat.listhdundata[p][o])
-                        print('gdat.listipnt[p][o]')
-                        print(gdat.listipnt[p][o])
-                        print('gdat.listtsecspoc')
-                        print(gdat.listtsecspoc)
-                        print('gdat.listhdundataspoc')
-                        print(gdat.listhdundataspoc)
-                        print('np.where(gdat.listipnt[p][o] == gdat.listtsecspoc)[0][0]')
-                        print(np.where(gdat.listipnt[p][o] == gdat.listtsecspoc)[0][0])
                         gdat.listhdundata[p][o] = gdat.listhdundataspoc[np.where(gdat.listipnt[p][o] == gdat.listtsecspoc)[0][0]]
                     else:
                         gdat.listhdundata[p][o] = gdat.listhdundataffimtess[np.where(gdat.listipnt[p][o] == gdat.listtsecffim)[0][0]]
@@ -2557,8 +2551,9 @@ def init( \
                     if gdat.booldiag:
                         if isinstance(gdat.listhdundataffimtess[o], np.ndarray):
                             raise Exception('')
-
-                    gdat.listhdundata[p][o] = gdat.listhdundataffimothr[np.where(gdat.listipnt[p][o] == gdat.listtsecffim[p])[0][0]]
+                    
+                    # to be fixed for LSST
+                    #gdat.listhdundata[p][o] = gdat.listhdundataffimothr[np.where(gdat.listipnt[p][o] == gdat.listtsecffim[p])[0][0]]
                 
                 if gdat.booldiag:
                     
