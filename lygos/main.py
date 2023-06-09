@@ -2544,6 +2544,8 @@ def init( \
                         print(gdat.listhdundata[p][o])
                         print('gdat.listipnt[p][o]')
                         print(gdat.listipnt[p][o])
+                        print('gdat.listtsecspoc')
+                        print(gdat.listtsecspoc)
                         print('gdat.listhdundataspoc')
                         print(gdat.listhdundataspoc)
                         print('np.where(gdat.listipnt[p][o] == gdat.listtsecspoc)[0][0]')
