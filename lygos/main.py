@@ -1228,33 +1228,33 @@ def init( \
     gdat.dictfact = tdpy.retr_factconv()
     
     # types of ticitarg
-    #'tici', 'toii', 'mast', 'posi', 'sols', 'posi'
+    #'TICID', 'TOIID', 'mast', 'posi', 'sols', 'posi'
 
     # determine the MAST keyword and TOI ID of the target and its type
     if gdat.ticitarg is not None:
-        gdat.typetarg = 'tici'
+        gdat.typetarg = 'TICID'
         print('A TIC ID was provided as target identifier.')
-        indx = np.where(dicttoii['tici'] == gdat.ticitarg)[0]
+        indx = np.where(dicttoii['TICID'] == gdat.ticitarg)[0]
         if indx.size > 0:
-            gdat.toiitarg = int(str(dicttoii['toii'][indx[0]]).split('.')[0])
+            gdat.toiitarg = int(str(dicttoii['TOIID'][indx[0]]).split('.')[0])
             print('Matched the input TIC ID with TOI %d.' % gdat.toiitarg)
         gdat.strgmast = 'TIC %d' % gdat.ticitarg
     elif gdat.toiitarg is not None:
-        gdat.typetarg = 'toii'
+        gdat.typetarg = 'TOIID'
         print('A TOI number (%d) was provided as target identifier.' % gdat.toiitarg)
         # determine TIC ID
         gdat.strgtoiibase = str(gdat.toiitarg)
         indx = []
-        for k, strg in enumerate(dicttoii['toii']):
+        for k, strg in enumerate(dicttoii['TOIID']):
             if str(strg).split('.')[0] == gdat.strgtoiibase:
                 indx.append(k)
         indx = np.array(indx)
         if indx.size == 0:
             print('Did not find the TOI in the ExoFOP-TESS TOI list.')
             print('dicttoii[toii]')
-            summgene(dicttoii['toii'])
+            summgene(dicttoii['TOIID'])
             raise Exception('')
-        gdat.ticitarg = dicttoii['tici'][indx[0]]
+        gdat.ticitarg = dicttoii['TICID'][indx[0]]
         gdat.strgmast = 'TIC %d' % gdat.ticitarg
     elif gdat.strgmast is not None:
         gdat.typetarg = 'mast'
@@ -1355,7 +1355,7 @@ def init( \
         if not 'simutargsynt' in gdat.liststrgtypedata:
             gdat.refr.liststrgfeatbase[q] += ['rasc', 'decl']
             if gdat.refr.lablcatl[q] == 'TIC':
-                gdat.refr.liststrgfeatbase[q] += ['tici', 'tmag', 'pmde', 'pmra', 'rascorig', 'declorig']
+                gdat.refr.liststrgfeatbase[q] += ['TICID', 'tmag', 'pmde', 'pmra', 'rascorig', 'declorig']
     gdat.refr.liststrgfeat = [[] for q in gdat.refr.indxcatl]
     for q in gdat.refr.indxcatl:
         gdat.refr.liststrgfeat[q] = gdat.refr.liststrgfeatbase[q] + ['xpos', 'ypos']
@@ -1459,14 +1459,14 @@ def init( \
             
             for name in gdat.refr.liststrgfeatbase[q]:
                 gdat.refr.catlbase[q][name] = np.empty(gdat.refr.numbpntsbase[q])
-            gdat.refr.catlbase[q]['tici'] = np.empty(gdat.refr.numbpntsbase[q], dtype=int)
+            gdat.refr.catlbase[q]['TICID'] = np.empty(gdat.refr.numbpntsbase[q], dtype=int)
             gdat.refr.catlbase[q]['labl'] = np.empty(gdat.refr.numbpntsbase[q], dtype=object)
 
             if gdat.refr.lablcatl[q] == 'TIC':
                 gdat.refr.catlbase[q]['tmag'][offs:] = catalogData[:]['Tmag']
                 gdat.refr.catlbase[q]['rasc'][offs:] = catalogData[:]['ra']
                 gdat.refr.catlbase[q]['decl'][offs:] = catalogData[:]['dec']
-                gdat.refr.catlbase[q]['tici'][offs:] = catalogData[:]['ID']
+                gdat.refr.catlbase[q]['TICID'][offs:] = catalogData[:]['ID']
                 gdat.refr.catlbase[q]['pmde'][offs:] = catalogData[:]['pmDEC']
                 gdat.refr.catlbase[q]['pmra'][offs:] = catalogData[:]['pmRA']
                 gdat.refr.catlbase[q]['rascorig'][offs:] = catalogData[:]['RA_orig']
@@ -1510,7 +1510,7 @@ def init( \
             
     if not gdat.boolsimutargsynt:
         
-        if gdat.typetarg == 'tici' or gdat.typetarg == 'toii' or gdat.typetarg == 'mast':
+        if gdat.typetarg == 'TICID' or gdat.typetarg == 'TOIID' or gdat.typetarg == 'mast':
             # ensure that the first source is the target
             gdat.ticitarg = int(catalogData[0]['ID'])
             gdat.rasctarg = catalogData[0]['ra']
@@ -1532,16 +1532,16 @@ def init( \
             print(gdat.rasctarg)
             print('gdat.decltarg')
             print(gdat.decltarg)
-            if gdat.typetarg == 'tici' or gdat.typetarg == 'toii' or gdat.typetarg == 'mast':
+            if gdat.typetarg == 'TICID' or gdat.typetarg == 'TOIID' or gdat.typetarg == 'mast':
                 print('gdat.tmagtarg')
                 print(gdat.tmagtarg)
     
     if gdat.labltarg is None:
         if gdat.typetarg == 'mast':
             gdat.labltarg = gdat.strgmast
-        elif gdat.typetarg == 'toii':
+        elif gdat.typetarg == 'TOIID':
             gdat.labltarg = 'TOI %d' % gdat.toiitarg
-        elif gdat.typetarg == 'tici':
+        elif gdat.typetarg == 'TICID':
             gdat.labltarg = 'TIC %d' % gdat.ticitarg
         elif gdat.typetarg == 'posi':
             gdat.labltarg = 'RA=%.4g, DEC=%.4g' % (gdat.rasctarg, gdat.decltarg)
@@ -1559,7 +1559,7 @@ def init( \
     if not gdat.boolsimutargsynt:
         if gdat.typetarg != 'sols':
             print('RA and DEC: %g %g' % (gdat.rasctarg, gdat.decltarg))
-        if gdat.typetarg == 'tici' or gdat.typetarg == 'mast':
+        if gdat.typetarg == 'TICID' or gdat.typetarg == 'mast':
             print('Tmag: %g' % gdat.tmagtarg)
    
     print('PSF inference type: %s' % gdat.typepsfninfe)
@@ -2013,7 +2013,7 @@ def init( \
                     print('Will not be using TPFs since number of pixels along a side is not 11.')
                 else:
                     # determine whether sectors have TPFs
-                    gdat.booltpxf[p] = miletos.retr_booltpxf(gdat.listipnt[p], gdat.listtsecspoc)
+                    gdat.booltpxf[p] = ~tdpy.retr_boolsubb(gdat.listipnt[p], gdat.listtsecspoc)
 
             if gdat.booldiag:
                 if not gdat.booltesspast[p] and gdat.liststrgtypedata[p] == 'obsd':
@@ -2236,7 +2236,7 @@ def init( \
         #gdat.refr.raticontsing = retr_raticontsing(gdat, gdat.refr.catlbase[q]['xpos'], gdat.refr.catlbase[q]['ypos'], \
         #                                                                            gdat.refr.catlbase[q]['cnts'], gdat.fitt.parapsfn)
         
-        #if gdat.typetarg == 'tici' or gdat.typetarg == 'toii' or gdat.typetarg == 'mast':
+        #if gdat.typetarg == 'TICID' or gdat.typetarg == 'TOIID' or gdat.typetarg == 'mast':
             
         #dmag = (gdat.refr.catlbase[q]['tmag'] - gdat.refr.catlbase[q]['tmag'][0]) / 
         if gdat.boolsimutargsynt:
@@ -2729,6 +2729,10 @@ def init( \
                     listhdun = astropy.io.fits.open(path)
                     gdat.cntpdata = listhdun[1].data
                     if gdat.booldiag:
+                        print('o')
+                        print(o)
+                        print('gdat.listtime')
+                        print(gdat.listtime)
                         if gdat.cntpdata.shape[2] != len(gdat.listtime[p][o]):
                             print('')
                             print('')
