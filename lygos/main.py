@@ -2571,10 +2571,11 @@ def init( \
 
                 gdat.listobjtwcss[p][o] = astropy.wcs.WCS(gdat.listhdundata[p][o][2].header)
                 
-            else:
+            # either simulate or read times and count maps
+            if gdat.boolsimutargsynt or gdat.liststrgtypedata[p] == 'simutargpartsynt':
                 
-                path = gdat.pathdatatarg + 'cntpdata_%s_%s_%s.fits' % (gdat.liststrgtypedata[p], gdat.liststrginst[p], strgchun)
-                if not os.path.exists(path):
+                pathfitssimu = gdat.pathdatatarg + 'cntpdata_%s_%s_%s.fits' % (gdat.liststrgtypedata[p], gdat.liststrginst[p], strgchun)
+                if not os.path.exists(pathfitssimu):
                     # Create a new WCS object.  The number of axes must be set
                     print('Constructing a WCS object with pointing at RA, DEC = (%g, %g)...' % (gdat.rasctarg, gdat.decltarg))
                     objtwcss = astropy.wcs.WCS(naxis=2)
@@ -2587,60 +2588,6 @@ def init( \
                     
                     gdat.listobjtwcss[p][o] = objtwcss
 
-                else:
-                    print('Reading from %s...' % path)
-                    listhdun = astropy.io.fits.open(path)
-                    gdat.listobjtwcss[p][o] = astropy.wcs.WCS(listhdun[0].header)
-
-            if gdat.strgtarg == 'Earth':
-                xposeart = gdat.numbside[p] / 2.
-                yposeart = xposeart
-                gdat.funcepic = gdat.funcintpepic(gdat.xposimagodim[p] - xposeart, gdat.yposimagodim[p] - yposeart).reshape(gdat.xposimag[p].shape)
-                
-                gdat.funcepic -= np.amin(gdat.funcepic)
-                #gdat.funcepic[gdat.funcepic < 0] = 0.
-
-                if (gdat.funcepic < 0.).any():
-                    print('gdat.funcepic')
-                    summgene(gdat.funcepic)
-                    raise Exception('')
-
-            
-            #raise Exception('')
-
-            ## reference catalogs
-            for q in gdat.refr.indxcatl:
-                
-                if not gdat.boolsimutargsynt:
-                    gdat.refr.cequ[q][p][o] = np.empty((gdat.refr.catl[q][p][o]['rasc'].size, 2))
-                    gdat.refr.cequ[q][p][o][:, 0] = gdat.refr.catl[q][p][o]['rasc']
-                    gdat.refr.cequ[q][p][o][:, 1] = gdat.refr.catl[q][p][o]['decl']
-                    gdat.refr.cpix = gdat.listobjtwcss[p][o].all_world2pix(gdat.refr.cequ[q][p][o], 0)
-                    gdat.refr.catl[q][p][o]['xpos'] = gdat.refr.cpix[:, 0]
-                    gdat.refr.catl[q][p][o]['ypos'] = gdat.refr.cpix[:, 1]
-                    if gdat.booltpxf[p][o] and gdat.numbside[p] < 11:
-                        gdat.refr.catl[q][p][o]['xpos'] -= intg
-                        gdat.refr.catl[q][p][o]['ypos'] -= intg
-                    
-                gdat.refr.numbpnts[q][p][o] = gdat.refr.catl[q][p][o]['xpos'].size
-                gdat.refr.indxpnts[q][p][o] = np.arange(gdat.refr.numbpnts[q][p][o])
-                
-                ## indices of the reference catalog sources within the cutout
-                gdat.indxpntswthn[q][p][o] = np.where((gdat.refr.catl[q][p][o]['xpos'] > -0.5) & (gdat.refr.catl[q][p][o]['xpos'] < gdat.numbside[p] - 0.5) & \
-                                                (gdat.refr.catl[q][p][o]['ypos'] > -0.5) & (gdat.refr.catl[q][p][o]['ypos'] < gdat.numbside[p] - 0.5))[0]
-
-                
-                print('Number of reference sources inside the cutout is %d...' % gdat.indxpntswthn[q][p][o].size)
-                gdat.indxpntswthnbrgt[q][p][o] = np.intersect1d(gdat.indxpntswthn[q][p][o], gdat.indxpntsbrgt[q])
-                print('Number of reference sources that are bright & blended and inside the cutout is %d...' % gdat.indxpntswthnbrgt[q][p][o].size)
-                
-                if gdat.booldiag:
-                    if len(gdat.indxpntswthnbrgt[0][p][o]) == 0:
-                        raise Exception('')
-
-            if gdat.boolsimutargsynt or gdat.liststrgtypedata[p] == 'simutargpartsynt':
-                
-                if not os.path.exists(path):
                     print('Simulating the images...')
                     # initialize the simulated data
                     gdat.cntpmodlsimu = np.zeros((gdat.numbside[p], gdat.numbside[p], gdat.listtime[p][o].size))
@@ -2722,29 +2669,15 @@ def init( \
                     print('heeey')
                     print('gdat.cntpdata')
                     summgene(gdat.cntpdata)
-                    print('Writing to %s...' % path)
+                    print('Writing to %s...' % pathfitssimu)
                     listhdun.writeto(path)
                 else:
-                    print('Reading from %s...' % path)
-                    listhdun = astropy.io.fits.open(path)
-                    gdat.cntpdata = listhdun[1].data
-                    if gdat.booldiag:
-                        print('o')
-                        print(o)
-                        print('gdat.listtime')
-                        print(gdat.listtime)
-                        if gdat.cntpdata.shape[2] != len(gdat.listtime[p][o]):
-                            print('')
-                            print('')
-                            print('')
-                            print('gdat.numbtime[p][o]')
-                            print(gdat.numbtime[p][o])
-                            print('gdat.cntpdata')
-                            summgene(gdat.cntpdata)
-                            raise Exception('Time dimension of the count map read from disk does not match that of the time array.')
-                                
+                    print('Reading from %s...' % pathfitssimu)
+                    listhdun = astropy.io.fits.open(pathfitssimu)
+                    gdat.listobjtwcss[p][o] = astropy.wcs.WCS(listhdun[0].header)
 
-            if gdat.liststrgtypedata[p] == 'simutargpartinje' or gdat.liststrgtypedata[p] == 'obsd':
+
+            elif gdat.liststrgtypedata[p] == 'simutargpartinje' or gdat.liststrgtypedata[p] == 'obsd':
                 
                 # get data
                 ## read the FITS files
@@ -2804,6 +2737,52 @@ def init( \
                 # keep good times and discard others
                 gdat.listtime[p][o] = gdat.listtime[p][o][indxtimedatagood]
                 gdat.cntpdata = gdat.cntpdata[:, :, indxtimedatagood]
+            
+            else:   
+                raise Exception('')
+
+            if gdat.strgtarg == 'Earth':
+                xposeart = gdat.numbside[p] / 2.
+                yposeart = xposeart
+                gdat.funcepic = gdat.funcintpepic(gdat.xposimagodim[p] - xposeart, gdat.yposimagodim[p] - yposeart).reshape(gdat.xposimag[p].shape)
+                
+                gdat.funcepic -= np.amin(gdat.funcepic)
+                #gdat.funcepic[gdat.funcepic < 0] = 0.
+
+                if (gdat.funcepic < 0.).any():
+                    print('gdat.funcepic')
+                    summgene(gdat.funcepic)
+                    raise Exception('')
+
+            ## reference catalogs
+            for q in gdat.refr.indxcatl:
+                
+                if not gdat.boolsimutargsynt:
+                    gdat.refr.cequ[q][p][o] = np.empty((gdat.refr.catl[q][p][o]['rasc'].size, 2))
+                    gdat.refr.cequ[q][p][o][:, 0] = gdat.refr.catl[q][p][o]['rasc']
+                    gdat.refr.cequ[q][p][o][:, 1] = gdat.refr.catl[q][p][o]['decl']
+                    gdat.refr.cpix = gdat.listobjtwcss[p][o].all_world2pix(gdat.refr.cequ[q][p][o], 0)
+                    gdat.refr.catl[q][p][o]['xpos'] = gdat.refr.cpix[:, 0]
+                    gdat.refr.catl[q][p][o]['ypos'] = gdat.refr.cpix[:, 1]
+                    if gdat.booltpxf[p][o] and gdat.numbside[p] < 11:
+                        gdat.refr.catl[q][p][o]['xpos'] -= intg
+                        gdat.refr.catl[q][p][o]['ypos'] -= intg
+                    
+                gdat.refr.numbpnts[q][p][o] = gdat.refr.catl[q][p][o]['xpos'].size
+                gdat.refr.indxpnts[q][p][o] = np.arange(gdat.refr.numbpnts[q][p][o])
+                
+                ## indices of the reference catalog sources within the cutout
+                gdat.indxpntswthn[q][p][o] = np.where((gdat.refr.catl[q][p][o]['xpos'] > -0.5) & (gdat.refr.catl[q][p][o]['xpos'] < gdat.numbside[p] - 0.5) & \
+                                                (gdat.refr.catl[q][p][o]['ypos'] > -0.5) & (gdat.refr.catl[q][p][o]['ypos'] < gdat.numbside[p] - 0.5))[0]
+
+                
+                print('Number of reference sources inside the cutout is %d...' % gdat.indxpntswthn[q][p][o].size)
+                gdat.indxpntswthnbrgt[q][p][o] = np.intersect1d(gdat.indxpntswthn[q][p][o], gdat.indxpntsbrgt[q])
+                print('Number of reference sources that are bright & blended and inside the cutout is %d...' % gdat.indxpntswthnbrgt[q][p][o].size)
+                
+                if gdat.booldiag:
+                    if len(gdat.indxpntswthnbrgt[0][p][o]) == 0:
+                        raise Exception('')
             
             gdat.numbtime[p][o] = gdat.listtime[p][o].size
             gdat.indxtime[p][o] = np.arange(gdat.numbtime[p][o])
