@@ -1080,12 +1080,12 @@ def init( \
     if gdat.booldiag:
         for p in gdat.indxinst:
             if not gdat.liststrgtypedata[p] in ['simutargsynt', 'simutargpartsynt', 'simutargpartinje', 'obsd']:
+                print('')
+                print('')
+                print('')
                 print('gdat.liststrgtypedata')
                 print(gdat.liststrgtypedata)
                 raise Exception('gdat.liststrgtypedata has an issue.')
-
-    if isinstance(gdat.numbside, list):
-        gdat.numbside = np.array(gdat.numbside)
 
     if gdat.numbside is None:
         gdat.boolinptnumbside = False
@@ -1094,6 +1094,9 @@ def init( \
     else:
         gdat.boolinptnumbside = True
         
+    if isinstance(gdat.numbside, list):
+        gdat.numbside = np.array(gdat.numbside)
+
     if gdat.dicttrue is None:
         gdat.dicttrue = dict()
     
@@ -1309,6 +1312,19 @@ def init( \
             print('gdat.liststrginst')
             print(gdat.liststrginst)
             raise Exception('')
+    
+    if gdat.booldiag:
+        if gdat.sizepixl.size != gdat.numbside.size:
+            print('')
+            print('')
+            print('')
+            print('gdat.numbinst')
+            print(gdat.numbinst)
+            print('gdat.sizepixl')
+            print(gdat.sizepixl)
+            print('gdat.numbside')
+            print(gdat.numbside)
+            raise Exception('gdat.sizepixl.size != gdat.numbside.size')
 
     # size of the one side of the image in arcseconds
     gdat.sizeimag = gdat.sizepixl * gdat.numbside
@@ -1482,6 +1498,8 @@ def init( \
                 offszero = 24.
             elif gdat.liststrginst[p] == 'TGEO-VIS':
                 offszero = 24.
+            elif gdat.liststrginst[p] == 'ULTRASAT':
+                offszero = 22.4
             else:
                 print('')
                 print('')
@@ -1621,11 +1639,10 @@ def init( \
     gdat.dictoutp = dict()
     gdat.dictoutp['arryrflx'] = dict()
     for p in gdat.indxinst:
-        if gdat.boolsimutargsynt:
-            if 'TESS' in gdat.liststrginst:
-                gdat.listipnt[p] = np.array([1])
-                gdat.listtcam = np.array([0])
-                gdat.listtccd = np.array([0])
+        if gdat.liststrgtypedata[p] == 'simutargpartsynt' or gdat.liststrgtypedata[p] == 'simutargsynt':
+            gdat.listipnt[p] = np.array([1])
+            gdat.listtcam = np.array([0])
+            gdat.listtccd = np.array([0])
     
         if 'TGEO-IR' in gdat.liststrginst or 'TGEO-VIS' in gdat.liststrginst:
             gdat.listipnt[p] = np.array([1])

@@ -20,8 +20,34 @@ def cnfg_lsst_exop():
         lygos.init( \
                    strgmast='TOI-1233', \
                    liststrginst=['LSST-r'], \
-                   typedata=typedata, \
+                   liststrgtypedata=liststrgtypedata, \
                   )
+
+
+def cnfg_ULTRASAT():
+    '''
+    Pipeline to simulate TESSGeo light curves'''   
+    
+    strgmast = 'Vega'
+    
+    #nametarg = 'Earth'
+    #nametarg = None
+    
+    listtime = [[np.array([0.])]]
+    
+    liststrgtypedata = ['simutargpartsynt', 'obsd']
+    lygos.init( \
+               strgmast=strgmast, \
+                
+               listtime=listtime, \
+               #strgmast=strgmast, \
+               #nametarg=nametarg, \
+               maxmtmagcatl=6., \
+               #numbside=[500, 50, 5, 5], \
+               
+               liststrginst=['ULTRASAT', 'TESS'], \
+               liststrgtypedata=liststrgtypedata, \
+              )
 
 
 def cnfg_TESSGeo():
@@ -47,7 +73,7 @@ def cnfg_TESSGeo():
                    numbside=[500, 50, 5, 5], \
                    
                    liststrginst=['TESSCam', 'FoveaCam', 'ULTRASAT', 'TESS'], \
-                   typedata=typedata, \
+                   liststrgtypedata=liststrgtypedata, \
                   )
 
 
@@ -370,7 +396,7 @@ def cnfg_syst(typeanls):
 
                    seedrand=k, \
 
-                   typedata=typedata, \
+                   liststrgtypedata=liststrgtypedata, \
                   )
         
         if len(dictoutp['listnois']) > 0:
