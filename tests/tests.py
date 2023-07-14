@@ -50,29 +50,25 @@ def cnfg_ULTRASAT():
               )
 
 
-def cnfg_TESSGeo():
+def cnfg_TESSGEO():
     '''
     Pipeline to simulate TESSGeo light curves'''   
     
-    strgmast = 'Vega'
+    strgmast = 'TOI-1233'
     
     #nametarg = 'Earth'
     #nametarg = None
     
-    listtime = [[np.array([0.])]]
-    
-    #for typedata in ['simutoyy', 'simuskyy']:
+    liststrgtypedata = ['simutargpartsynt', 'simutargpartsynt', 'simutargpartsynt', 'obsd']
     for typedata in ['simuskyy']:
         lygos.init( \
                    strgmast=strgmast, \
-                    
-                   listtime=listtime, \
                    #strgmast=strgmast, \
                    #nametarg=nametarg, \
-                   maxmtmagcatl=6., \
-                   numbside=[500, 50, 5, 5], \
+                   #numbside=numbside, \
+                   #[500, 50, 5, 5], \
                    
-                   liststrginst=['TESSCam', 'FoveaCam', 'ULTRASAT', 'TESS'], \
+                   liststrginst=['TGEO-UV', 'TGEO-VIS', 'TGEO-IR', 'TESS'], \
                    liststrgtypedata=liststrgtypedata, \
                   )
 

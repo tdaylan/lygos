@@ -1445,11 +1445,18 @@ def init( \
                 gdat.refr.catlbase[q]['ypos'] = np.concatenate((np.array([gdat.true.ypostarg]), gdat.true.yposneig))
                 gdat.refr.catlbase[q]['velx'] = np.concatenate((np.array([gdat.true.velxtarg]), gdat.true.velxneig))
                 gdat.refr.catlbase[q]['vely'] = np.concatenate((np.array([gdat.true.velytarg]), gdat.true.velyneig))
-            if 'simutargpartinje' in gdat.liststrgtypedata:
+            elif 'simutargpartsynt' in gdat.liststrgtypedata:
+                gdat.refr.catlbase[q]['rasc'] = catalogData[:]['ra']
+                gdat.refr.catlbase[q]['decl'] = catalogData[:]['dec']
+                gdat.refr.catlbase[q]['velr'] = 0. * catalogData[:]['ra']
+                gdat.refr.catlbase[q]['veld'] = 0. * catalogData[:]['dec']
+            elif 'simutargpartinje' in gdat.liststrgtypedata:
                 gdat.refr.catlbase[q]['rasc'] = np.concatenate((np.array([gdat.true.rasctarg]), catalogData[:]['ra']))
                 gdat.refr.catlbase[q]['decl'] = np.concatenate((np.array([gdat.true.decltarg]), catalogData[:]['dec']))
                 gdat.refr.catlbase[q]['velr'] = np.concatenate((np.array([gdat.true.velrtarg]), 0. * catalogData[:]['ra']))
                 gdat.refr.catlbase[q]['veld'] = np.concatenate((np.array([gdat.true.veldtarg]), 0. * catalogData[:]['dec']))
+            else:   
+                raise Exception('')
         else:
             if gdat.boolsimutargsynt:
                 gdat.refr.catlbase[q]['xpos'] = np.array([gdat.true.xpostarg])
@@ -2025,29 +2032,28 @@ def init( \
         
         if not gdat.boolsimutargsynt:
         
-            if gdat.booltesspast[p]:
-                if gdat.boolinptnumbside and gdat.numbside[p] != 11:
-                    print('Will not be using TPFs since number of pixels along a side is not 11.')
-                else:
-                    # determine whether sectors have TPFs
-                    gdat.booltpxf[p] = ~tdpy.retr_boolsubb(gdat.listipnt[p], gdat.listtsecspoc)
+            if gdat.boolinptnumbside and gdat.numbside[p] != 11:
+                print('Will not be using TPFs since number of pixels along a side is not 11.')
+            else:
+                # determine whether sectors have TPFs
+                gdat.booltpxf[p] = ~tdpy.retr_boolsubb(gdat.listipnt[p], gdat.listtsecspoc)
 
             if gdat.booldiag:
-                if not gdat.booltesspast[p] and gdat.liststrgtypedata[p] == 'obsd':
-                    print('')
-                    print('')
-                    print('')
-                    print('gdat.listipnt[p]')
-                    print(gdat.listipnt[p])
-                    print('gdat.tseccurr')
-                    print(gdat.tseccurr)
-                    print('gdat.liststrginst[p]')
-                    print(gdat.liststrginst[p])
-                    print('gdat.liststrgtypedata[p]')
-                    print(gdat.liststrgtypedata[p])
-                    raise Exception('gdat.booltesspast[p] is False, so the data must be simulated.')
-
                 for o in gdat.indxtsec[p]:
+                    if not gdat.booltesspast[o] and gdat.liststrgtypedata[p] == 'obsd':
+                        print('')
+                        print('')
+                        print('')
+                        print('gdat.listipnt[p]')
+                        print(gdat.listipnt[p])
+                        print('gdat.tseccurr')
+                        print(gdat.tseccurr)
+                        print('gdat.liststrginst[p]')
+                        print(gdat.liststrginst[p])
+                        print('gdat.liststrgtypedata[p]')
+                        print(gdat.liststrgtypedata[p])
+                        raise Exception('gdat.booltesspast[o] is False, so the data must be simulated.')
+
                     if gdat.booltpxf[p][o]:
                         if gdat.boolinptnumbside:
                             raise Exception('')
@@ -2085,7 +2091,7 @@ def init( \
             raise Exception('')
 
         if not gdat.boolsimutargsynt:
-            if gdat.booltesspast[p]:
+            if gdat.booltesspast[o]:
                 if gdat.numbpoin[p] == 0:
                     print('No data have been retrieved for instrument %s.' % gdat.liststrginst[p])
                 else:
@@ -2247,6 +2253,10 @@ def init( \
             for o in gdat.indxtsec[p]:
                 for strgfeat in gdat.refr.liststrgfeatbase[q]:
                     gdat.refr.catl[q][p][o][strgfeat] = np.array(gdat.refr.catlbase[q][strgfeat])
+    
+    print('gdat.refr.catl')
+    print(gdat.refr.catl)
+    
     gdat.indxpntsbrgt = [[[[] for o in gdat.indxtsec[p]] for p in gdat.indxinst] for q in gdat.refr.indxcatl]
     for q in gdat.refr.indxcatl:
         
@@ -2556,8 +2566,8 @@ def init( \
                         gdat.listtime[p][o] = 2458119.5 + np.arange(0., 1. / 24., gdat.timeexpo[p][o])
                 
             # load the list of WCS objects for each pointing
-            if (gdat.liststrgtypedata[p] == 'simutargpartinje' or gdat.liststrgtypedata[p] == 'obsd' or gdat.liststrgtypedata[p] == 'simutargpartsynt') and \
-                                                 (gdat.booltesspast[p] or gdat.liststrginst[p] == 'LSST'):
+            if (gdat.liststrgtypedata[p] == 'simutargpartinje' or gdat.liststrgtypedata[p] == 'obsd') and \
+                                                 (gdat.booltesspast[o] or gdat.liststrginst[p] == 'LSST'):
             
                 if gdat.liststrginst[p] == 'TESS':
                     if gdat.booltpxf[p][o]:
@@ -2578,7 +2588,8 @@ def init( \
                         print('')
                         print('')
                         print('')
-                        raise Exception('')
+                        raise Exception('len(gdat.listhdundata[p][o]) == 0')
+                        print(len(gdat.listhdundata[p][o]) == 0)
                     
                     if isinstance(gdat.listhdundata[p][o], np.ndarray):
                         print('')
@@ -2620,6 +2631,10 @@ def init( \
                         gdat.cntpmodlsimu += 100. # [e-/s]
                     
                     ## add sources
+                    print('gdat.refr.catl[q][p]')
+                    print(gdat.refr.catl[q][p])
+                    print('gdat.refr.catl[q][p][o]')
+                    print(gdat.refr.catl[q][p][o])
                     xpos = gdat.refr.catl[q][p][o]['xpos'][gdat.indxpntswthn[q][p][o]]
                     ypos = gdat.refr.catl[q][p][o]['ypos'][gdat.indxpntswthn[q][p][o]]
                     if gdat.refr.lablcatl[q] == 'TIC':
