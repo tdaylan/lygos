@@ -233,13 +233,13 @@ def plot_cntp(gdat, \
                 for q in gdat.refr.indxcatl:
                     # label the reference sources
                     # all reference sources within the field of view
-                    axis[0].scatter(gdat.refr.catl[q][p][o]['xpos'][gdat.indxpntswthn[q][p][o]], gdat.refr.catl[q][p][o]['ypos'][gdat.indxpntswthn[q][p][o]], \
+                    axis[0].scatter(gdat.refr.catl[q][p][o]['xpos'][gdat.refr.indxpntswthn[q][p][o]], gdat.refr.catl[q][p][o]['ypos'][gdat.refr.indxpntswthn[q][p][o]], \
                                                                                                         alpha=0.3, s=gdat.sizemrkrsour, color='r', marker='o')
                     # all reference sources within the field of view as well as bright & blended enough
-                    axis[0].scatter(gdat.refr.catl[q][p][o]['xpos'][gdat.indxpntswthnbrgt[q][p][o]], gdat.refr.catl[q][p][o]['ypos'][gdat.indxpntswthnbrgt[q][p][o]], \
+                    axis[0].scatter(gdat.refr.catl[q][p][o]['xpos'][gdat.refr.indxpntswthnbrgt[q][p][o]], gdat.refr.catl[q][p][o]['ypos'][gdat.refr.indxpntswthnbrgt[q][p][o]], \
                                                                                                         alpha=1., s=gdat.sizemrkrsour, color='r', marker='o')
                     # label the reference sources
-                    for indxtemp in gdat.indxpntswthn[q][p][o]:
+                    for indxtemp in gdat.refr.indxpntswthn[q][p][o]:
                         axis[0].text(gdat.refr.catl[q][p][o]['xpos'][indxtemp] + 0.5, gdat.refr.catl[q][p][o]['ypos'][indxtemp] + 0.5, \
                                                                                                     gdat.refr.catl[q][p][o]['labl'][indxtemp], color='r')
                     
@@ -1435,7 +1435,7 @@ def init( \
             gdat.true.rasctarg = (gdat.maxmnumbside - 1.) / 2.
             gdat.true.decltarg = (gdat.maxmnumbside - 1.) / 2.
         
-        if gdat.true.tmagneig.size > 0 or 'simutargpartsynt' in gdat.liststrgtypedata:
+        if gdat.true.tmagneig.size > 0:
             # generate neighbors within 0.5 pixels of the edges
             gdat.true.velxneig = np.zeros(gdat.true.tmagneig.size)
             gdat.true.velyneig = np.zeros(gdat.true.tmagneig.size)
@@ -1458,12 +1458,8 @@ def init( \
             else:   
                 raise Exception('')
         else:
-            if gdat.boolsimutargsynt:
-                gdat.refr.catlbase[q]['xpos'] = np.array([gdat.true.xpostarg])
-                gdat.refr.catlbase[q]['ypos'] = np.array([gdat.true.ypostarg])
-            if gdat.boolsimutargsynt or 'simutargpartinje' in gdat.liststrgtypedata:
-                gdat.refr.catlbase[q]['rasc'] = np.array([gdat.true.rasctarg])
-                gdat.refr.catlbase[q]['decl'] = np.array([gdat.true.decltarg])
+            gdat.refr.catlbase[q]['rasc'] = np.array([gdat.true.rasctarg])
+            gdat.refr.catlbase[q]['decl'] = np.array([gdat.true.decltarg])
             gdat.refr.catlbase[q]['tmag'] = np.array([gdat.true.tmagtarg])
             gdat.refr.catlbase[q]['velx'] = np.array([gdat.true.velxtarg])
             gdat.refr.catlbase[q]['vely'] = np.array([gdat.true.velytarg])
@@ -2291,6 +2287,15 @@ def init( \
         
         print('Number of reference sources that are bright & blended is %d.' % gdat.numbrefrbrgt)
      
+    if gdat.booldiag:
+        if len(gdat.indxpntsbrgt[0]) == 0:
+            print('')
+            print('')
+            print('')
+            print('gdat.indxpntsbrgt[0]')
+            print(gdat.indxpntsbrgt[0])
+            raise Exception('len(gdat.indxpntsbrgt[0]) == 0')
+            
     #for p in gdat.indxinst:
     #print('Removing nearby sources that are too close separately for each instrument...')
     ## calculate angular distances
@@ -2433,8 +2438,8 @@ def init( \
     gdat.numblyqf = 3
     gdat.indxlyqf = np.arange(gdat.numblyqf)
     
-    gdat.indxpntswthn = [[[[] for o in gdat.indxtsec[p]] for p in gdat.indxinst] for q in gdat.refr.indxcatl]
-    gdat.indxpntswthnbrgt = [[[[] for o in gdat.indxtsec[p]] for p in gdat.indxinst] for q in gdat.refr.indxcatl]
+    gdat.refr.indxpntswthn = [[[[] for o in gdat.indxtsec[p]] for p in gdat.indxinst] for q in gdat.refr.indxcatl]
+    gdat.refr.indxpntswthnbrgt = [[[[] for o in gdat.indxtsec[p]] for p in gdat.indxinst] for q in gdat.refr.indxcatl]
     # get the WCS object for each sector
     gdat.listhdundata = [[[] for o in gdat.indxtsec[p]] for p in gdat.indxinst]
     gdat.listobjtwcss = [[[] for o in gdat.indxtsec[p]] for p in gdat.indxinst]
@@ -2603,6 +2608,7 @@ def init( \
             if gdat.boolsimutargsynt or gdat.liststrgtypedata[p] == 'simutargpartsynt':
                 
                 pathfitssimu = gdat.pathdatatarg + 'cntpdata_%s_%s_%s.fits' % (gdat.liststrgtypedata[p], gdat.liststrginst[p], strgchun)
+            
                 if not os.path.exists(pathfitssimu):
                     # Create a new WCS object.  The number of axes must be set
                     print('Constructing a WCS object with pointing at RA, DEC = (%g, %g)...' % (gdat.rasctarg, gdat.decltarg))
@@ -2616,6 +2622,30 @@ def init( \
                     
                     gdat.listobjtwcss[p][o] = objtwcss
 
+                else:
+                    print('Reading from %s...' % pathfitssimu)
+                    listhdun = astropy.io.fits.open(pathfitssimu)
+                    gdat.listobjtwcss[p][o] = astropy.wcs.WCS(listhdun[0].header)
+                    gdat.cntpdata = listhdun[1].data
+            
+            ## reference catalogs
+            for q in gdat.refr.indxcatl:
+                
+                print('gdat.liststrgtypedata[p]')
+                print(gdat.liststrgtypedata[p])
+                if not gdat.boolsimutargsynt:
+                    gdat.refr.cequ[q][p][o] = np.empty((gdat.refr.catl[q][p][o]['rasc'].size, 2))
+                    gdat.refr.cequ[q][p][o][:, 0] = gdat.refr.catl[q][p][o]['rasc']
+                    gdat.refr.cequ[q][p][o][:, 1] = gdat.refr.catl[q][p][o]['decl']
+                    gdat.refr.cpix = gdat.listobjtwcss[p][o].all_world2pix(gdat.refr.cequ[q][p][o], 0)
+                    gdat.refr.catl[q][p][o]['xpos'] = gdat.refr.cpix[:, 0]
+                    gdat.refr.catl[q][p][o]['ypos'] = gdat.refr.cpix[:, 1]
+                    if gdat.booltpxf[p][o] and gdat.numbside[p] < 11:
+                        gdat.refr.catl[q][p][o]['xpos'] -= intg
+                        gdat.refr.catl[q][p][o]['ypos'] -= intg
+                    
+            if gdat.boolsimutargsynt or gdat.liststrgtypedata[p] == 'simutargpartsynt':
+                if not os.path.exists(pathfitssimu):
                     print('Simulating the images...')
                     # initialize the simulated data
                     gdat.cntpmodlsimu = np.zeros((gdat.numbside[p], gdat.numbside[p], gdat.listtime[p][o].size))
@@ -2635,11 +2665,11 @@ def init( \
                     print(gdat.refr.catl[q][p])
                     print('gdat.refr.catl[q][p][o]')
                     print(gdat.refr.catl[q][p][o])
-                    xpos = gdat.refr.catl[q][p][o]['xpos'][gdat.indxpntswthn[q][p][o]]
-                    ypos = gdat.refr.catl[q][p][o]['ypos'][gdat.indxpntswthn[q][p][o]]
+                    xpos = gdat.refr.catl[q][p][o]['xpos'][gdat.refr.indxpntswthn[q][p][o]]
+                    ypos = gdat.refr.catl[q][p][o]['ypos'][gdat.refr.indxpntswthn[q][p][o]]
                     if gdat.refr.lablcatl[q] == 'TIC':
                         typesour = 'pnts'
-                        cnts = gdat.refr.catl[q][p][o]['cnts'][gdat.indxpntswthn[q][p][o]]
+                        cnts = gdat.refr.catl[q][p][o]['cntsesti'][gdat.refr.indxpntswthn[q][p][o]]
                     else:
                         cnts = np.zeros_like(xpos) + 1e8
                         typesour = 'Earth'
@@ -2702,12 +2732,7 @@ def init( \
                     print('gdat.cntpdata')
                     summgene(gdat.cntpdata)
                     print('Writing to %s...' % pathfitssimu)
-                    listhdun.writeto(path)
-                else:
-                    print('Reading from %s...' % pathfitssimu)
-                    listhdun = astropy.io.fits.open(pathfitssimu)
-                    gdat.listobjtwcss[p][o] = astropy.wcs.WCS(listhdun[0].header)
-
+                    listhdun.writeto(pathfitssimu)
 
             elif gdat.liststrgtypedata[p] == 'simutargpartinje' or gdat.liststrgtypedata[p] == 'obsd':
                 
@@ -2786,35 +2811,31 @@ def init( \
                     summgene(gdat.funcepic)
                     raise Exception('')
 
-            ## reference catalogs
             for q in gdat.refr.indxcatl:
-                
-                if not gdat.boolsimutargsynt:
-                    gdat.refr.cequ[q][p][o] = np.empty((gdat.refr.catl[q][p][o]['rasc'].size, 2))
-                    gdat.refr.cequ[q][p][o][:, 0] = gdat.refr.catl[q][p][o]['rasc']
-                    gdat.refr.cequ[q][p][o][:, 1] = gdat.refr.catl[q][p][o]['decl']
-                    gdat.refr.cpix = gdat.listobjtwcss[p][o].all_world2pix(gdat.refr.cequ[q][p][o], 0)
-                    gdat.refr.catl[q][p][o]['xpos'] = gdat.refr.cpix[:, 0]
-                    gdat.refr.catl[q][p][o]['ypos'] = gdat.refr.cpix[:, 1]
-                    if gdat.booltpxf[p][o] and gdat.numbside[p] < 11:
-                        gdat.refr.catl[q][p][o]['xpos'] -= intg
-                        gdat.refr.catl[q][p][o]['ypos'] -= intg
-                    
                 gdat.refr.numbpnts[q][p][o] = gdat.refr.catl[q][p][o]['xpos'].size
                 gdat.refr.indxpnts[q][p][o] = np.arange(gdat.refr.numbpnts[q][p][o])
                 
                 ## indices of the reference catalog sources within the cutout
-                gdat.indxpntswthn[q][p][o] = np.where((gdat.refr.catl[q][p][o]['xpos'] > -0.5) & (gdat.refr.catl[q][p][o]['xpos'] < gdat.numbside[p] - 0.5) & \
+                gdat.refr.indxpntswthn[q][p][o] = np.where((gdat.refr.catl[q][p][o]['xpos'] > -0.5) & (gdat.refr.catl[q][p][o]['xpos'] < gdat.numbside[p] - 0.5) & \
                                                 (gdat.refr.catl[q][p][o]['ypos'] > -0.5) & (gdat.refr.catl[q][p][o]['ypos'] < gdat.numbside[p] - 0.5))[0]
 
                 
-                print('Number of reference sources inside the cutout is %d...' % gdat.indxpntswthn[q][p][o].size)
-                gdat.indxpntswthnbrgt[q][p][o] = np.intersect1d(gdat.indxpntswthn[q][p][o], gdat.indxpntsbrgt[q])
-                print('Number of reference sources that are bright & blended and inside the cutout is %d...' % gdat.indxpntswthnbrgt[q][p][o].size)
+                print('Number of reference sources inside the cutout is %d...' % gdat.refr.indxpntswthn[q][p][o].size)
+                gdat.refr.indxpntswthnbrgt[q][p][o] = np.intersect1d(gdat.refr.indxpntswthn[q][p][o], gdat.indxpntsbrgt[q])
+                print('Number of reference sources that are bright & blended and inside the cutout is %d...' % gdat.refr.indxpntswthnbrgt[q][p][o].size)
                 
                 if gdat.booldiag:
-                    if len(gdat.indxpntswthnbrgt[0][p][o]) == 0:
-                        raise Exception('')
+                    if len(gdat.refr.indxpntswthnbrgt[0][p][o]) == 0:
+                        print('')
+                        print('')
+                        print('')
+                        print('gdat.refr.indxpntswthn[0][p][o]')
+                        print(gdat.refr.indxpntswthn[0][p][o])
+                        print('gdat.indxpntsbrgt[0]')
+                        print(gdat.indxpntsbrgt[0])
+                        print('gdat.refr.indxpntswthnbrgt[0][p][o]')
+                        print(gdat.refr.indxpntswthnbrgt[0][p][o])
+                        raise Exception('len(gdat.refr.indxpntswthnbrgt[0][p][o]) == 0')
             
             gdat.numbtime[p][o] = gdat.listtime[p][o].size
             gdat.indxtime[p][o] = np.arange(gdat.numbtime[p][o])
@@ -3134,7 +3155,7 @@ def init( \
                 
                 # copy the first reference catalog to the fitting catalog
                 for strgfeat in gdat.refr.liststrgfeat[q]:
-                    gdat.fitt.catl[strgfeat] = gdat.refr.catl[0][p][o][strgfeat][gdat.indxpntswthnbrgt[0][p][o]]
+                    gdat.fitt.catl[strgfeat] = gdat.refr.catl[0][p][o][strgfeat][gdat.refr.indxpntswthnbrgt[0][p][o]]
                 
                 if gdat.booldiag:
                     if len(gdat.fitt.catl['labl']) != len(gdat.fitt.catl['rasc']):
@@ -3229,6 +3250,24 @@ def init( \
             gdat.fitt.numbpnts = np.empty(gdat.numbanls, dtype=int)
             gdat.fitt.numbpnts[0] = gdat.fitt.catl['xpos'].size
             
+            if gdat.booldiag:
+                for e, nameanls in enumerate(gdat.listnameanls):
+                    if len(gdat.fitt.catl['labl']) != gdat.fitt.numbpnts[e]:
+                        print('')
+                        print('')
+                        print('')
+                        print('gdat.fitt.catl[labl]')
+                        print(gdat.fitt.catl['labl'])
+                        print('gdat.fitt.numbpnts')
+                        print(gdat.fitt.numbpnts)
+                        print('gdat.fitt.numbpntsneig')
+                        print(gdat.fitt.numbpntsneig)
+                        print('gdat.fitt.numbcomp')
+                        print(gdat.fitt.numbcomp)
+                        print('gdat.listnameanls')
+                        print(gdat.listnameanls)
+                        raise Exception('length of gdat.fitt.catl[labl] should be same as gdat.fitt.numbpnts[e].')
+
             print('gdat.fitt.numbpnts')
             print(gdat.fitt.numbpnts)
             print('gdat.fitt.catl[xpos]')
@@ -3325,7 +3364,7 @@ def init( \
                         print(gdat.fitt.numbcomp)
                         print('gdat.listnameanls')
                         print(gdat.listnameanls)
-                        raise Exception('lenght of gdat.fitt.catl[labl] should be same as gdat.fitt.numbpnts[e].')
+                        raise Exception('length of gdat.fitt.catl[labl] should be same as gdat.fitt.numbpnts[e].')
 
             for strgmodl in gdat.liststrgmodl:
                 gmod = getattr(gdat, strgmodl)
