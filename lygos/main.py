@@ -1683,31 +1683,32 @@ def init( \
 
             import multiprocessing
 
-            # Start bar as a process
-            objtproc = multiprocessing.Process(target=down_tcut, args=(gdat, ))
-            objtproc.start()
-            
             # time out
             timetout = 1200 # [sec]
 
-            # Wait for 10 seconds or until process finishes
-            objtproc.join(timetout)
-
-            # check if the process is still active
-            if objtproc.is_alive():
-                print('\nThe download call to TESSCut is still running after %d seconds, which may indicate a problem. Will time out and kill it...' % timetout)
-
-                # Terminate - may not work if process is stuck for good
-                #objtproc.terminate()
-                objtproc.kill()
-
-                objtproc.join()
+            if __name__ == '__main__':
+                objtproc = multiprocessing.Process(target=down_tcut, args=(gdat, ))
                 
-                gdat.boolterm = True
+                objtproc.start()
+                
+                # Wait until process finishes
+                objtproc.join(timetout)
 
-            else:
-                timefinl = timemodu.time()
-                print('Successfully called TESSCut in %g seconds.' % (timefinl - timeinit))
+                # check if the process is still active
+                if objtproc.is_alive():
+                    print('\nThe download call to TESSCut is still running after %d seconds, which may indicate a problem. Will time out and kill it...' % timetout)
+
+                    # Terminate - may not work if process is stuck for good
+                    #objtproc.terminate()
+                    objtproc.kill()
+
+                    objtproc.join()
+                    
+                    gdat.boolterm = True
+
+                else:
+                    timefinl = timemodu.time()
+                    print('Successfully called TESSCut in %g seconds.' % (timefinl - timeinit))
                             
             strgkeyy = "tess-s*_%.6f_%.6f_%dx%d_astrocut.fits" % (gdat.rasctarg, gdat.decltarg, gdat.numbsidedefa, gdat.numbsidedefa)
             liststrgfile = fnmatch.filter(os.listdir(gdat.pathdatatargtcut), strgkeyy)
@@ -1904,26 +1905,39 @@ def init( \
         
         for k in range(len(gdat.listtsecconc)):
             indx = np.where(gdat.listtsecspoc == gdat.listtsecconc[k])[0]
+            print('gdat.listtsecconc[k]')
+            print(gdat.listtsecconc[k])
             if indx.size > 0:
                 gdat.listtsec.append(gdat.listtsecspoc[indx[0]])
                 gdat.listtcam.append(gdat.listtcamspoc[indx[0]])
                 gdat.listtccd.append(gdat.listtccdspoc[indx[0]])
             else:
+                indx = np.where(gdat.listtsecffim == gdat.listtsecconc[k])[0]
+                gdat.listtsec.append(gdat.listtsecffim[indx[0]])
+                gdat.listtcam.append(gdat.listtcamffim[indx[0]])
+                gdat.listtccd.append(gdat.listtccdffim[indx[0]])
+                
                 print('gdat.listtcamffim')
                 print(gdat.listtcamffim)
                 print('gdat.listtsecconc[k]')
                 print(gdat.listtsecconc[k])
-                indx = np.where(gdat.listtsecffim == gdat.listtsecconc[k])[0]
                 print('indx')
                 print(indx)
                 print('gdat.listtsecffim')
                 print(gdat.listtsecffim)
-                gdat.listtsec.append(gdat.listtsecffim[indx[0]])
                 print('gdat.listtcam')
                 print(gdat.listtcam)
-                gdat.listtcam.append(gdat.listtcamffim[indx[0]])
-                gdat.listtccd.append(gdat.listtccdffim[indx[0]])
-        
+            print('')
+
+        if gdat.booldiag:
+            if len(gdat.listtsec) == 0:
+                print('')
+                print('')
+                print('')
+                print('gdat.listtsec')
+                print(gdat.listtsec)
+                raise Exception('')
+
         gdat.listtsec = np.array(gdat.listtsec)
         gdat.listtcam = np.array(gdat.listtcam)
         gdat.listtccd = np.array(gdat.listtccd)
@@ -1932,6 +1946,15 @@ def init( \
         
         if gdat.liststrginst[p] == 'TESS':
             gdat.listipnt[p] = gdat.listtsec
+            
+            if gdat.booldiag:
+                if len(gdat.listtsec) == 0:
+                    print('')
+                    print('')
+                    print('')
+                    print('gdat.listtsec')
+                    print(gdat.listtsec)
+                    raise Exception('')
 
         if isinstance(gdat.listipnt[p], list):
             gdat.listipnt[p] = np.array(gdat.listipnt[p], dtype=int)
